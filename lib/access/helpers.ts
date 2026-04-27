@@ -6,6 +6,8 @@ export function hasAccess(
   sectionKey: SectionKey
 ): boolean {
   if (role === 'superadmin') return true
+  // If no permissions configured yet, admin gets full access
+  if (permissions.length === 0 && role === 'admin') return true
   return permissions.some(p => p.section_key === sectionKey)
 }
 
