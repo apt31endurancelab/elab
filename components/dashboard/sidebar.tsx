@@ -72,7 +72,6 @@ const navItems = [
     items: [
       { title: "Facturas", href: "/dashboard/invoices", icon: FileText, sectionKey: "invoices" as SectionKey },
       { title: "Calendario", href: "/dashboard/invoices/calendar", icon: CalendarDays, sectionKey: "invoices/calendar" as SectionKey },
-      { title: "Nueva Factura", href: "/dashboard/invoices/new", icon: FilePlus, sectionKey: "invoices/new" as SectionKey },
     ],
   },
   {
