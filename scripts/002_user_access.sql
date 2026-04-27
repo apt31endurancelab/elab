@@ -15,7 +15,21 @@ ALTER TABLE public.profiles
 ALTER TABLE public.profiles
   ADD COLUMN IF NOT EXISTS invited_by UUID REFERENCES auth.users(id);
 
--- 3. Create user_permissions table
+-- 3. Helper function to check superadmin (avoids RLS recursion)
+CREATE OR REPLACE FUNCTION public.is_superadmin()
+RETURNS BOOLEAN
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+STABLE
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid() AND role = 'superadmin'
+  );
+$$;
+
+-- 4. Create user_permissions table
 CREATE TABLE IF NOT EXISTS public.user_permissions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -33,27 +47,19 @@ CREATE POLICY "permissions_select_own" ON public.user_permissions
 
 -- Superadmins can do everything with permissions
 CREATE POLICY "permissions_all_superadmin" ON public.user_permissions
-  FOR ALL USING (
-    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'superadmin')
-  );
+  FOR ALL USING (public.is_superadmin());
 
--- 4. Add superadmin policies to profiles
+-- 5. Add superadmin policies to profiles (using function to avoid recursion)
 CREATE POLICY "profiles_select_superadmin" ON public.profiles
-  FOR SELECT USING (
-    EXISTS (SELECT 1 FROM public.profiles AS p WHERE p.id = auth.uid() AND p.role = 'superadmin')
-  );
+  FOR SELECT USING (public.is_superadmin());
 
 CREATE POLICY "profiles_update_superadmin" ON public.profiles
-  FOR UPDATE USING (
-    EXISTS (SELECT 1 FROM public.profiles AS p WHERE p.id = auth.uid() AND p.role = 'superadmin')
-  );
+  FOR UPDATE USING (public.is_superadmin());
 
 CREATE POLICY "profiles_insert_superadmin" ON public.profiles
-  FOR INSERT WITH CHECK (
-    EXISTS (SELECT 1 FROM public.profiles AS p WHERE p.id = auth.uid() AND p.role = 'superadmin')
-  );
+  FOR INSERT WITH CHECK (public.is_superadmin());
 
--- 5. Update handle_new_user trigger to support roles from metadata
+-- 6. Update handle_new_user trigger to support roles from metadata
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -77,7 +83,7 @@ BEGIN
 END;
 $$;
 
--- 6. Function to update last_sign_in_at when user signs in
+-- 7. Function to update last_sign_in_at when user signs in
 CREATE OR REPLACE FUNCTION public.handle_user_sign_in()
 RETURNS TRIGGER
 LANGUAGE plpgsql
