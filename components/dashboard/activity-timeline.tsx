@@ -30,6 +30,7 @@ import {
   Filter,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import Link from "next/link"
 
 interface ActivityLog {
   id: string
@@ -124,6 +125,28 @@ function getMetadataDescription(log: ActivityLog): string | null {
   if (meta.field && meta.old_value !== undefined) return `${meta.field}: ${meta.old_value} → ${meta.new_value}`
 
   return null
+}
+
+function getEntityLink(log: ActivityLog): string | null {
+  const id = log.entity_id
+  switch (log.entity_type) {
+    case "client":
+      return id ? `/dashboard/clients/${id}` : "/dashboard/clients"
+    case "invoice":
+      return "/dashboard/invoices"
+    case "task":
+      return "/dashboard/tasks"
+    case "affiliate":
+      return "/dashboard/affiliates"
+    case "user":
+      return log.action === "user.invited" || log.action === "user.role_changed"
+        ? "/dashboard/settings/access"
+        : null
+    case "shopify":
+      return "/dashboard/shopify"
+    default:
+      return null
+  }
 }
 
 function groupLogsByDay(logs: ActivityLog[]): Map<string, ActivityLog[]> {
@@ -251,6 +274,17 @@ export function ActivityTimeline({ logs, isSuperadmin, users }: ActivityTimeline
                   const userInfo = users[log.user_id]
                   const userName = userInfo?.full_name || userInfo?.email || log.user_id.slice(0, 8)
                   const metaDesc = getMetadataDescription(log)
+                  const link = getEntityLink(log)
+
+                  const CardWrapper = link
+                    ? ({ children, className }: { children: React.ReactNode; className: string }) => (
+                        <Link href={link} className={cn(className, "block cursor-pointer")}>
+                          {children}
+                        </Link>
+                      )
+                    : ({ children, className }: { children: React.ReactNode; className: string }) => (
+                        <div className={className}>{children}</div>
+                      )
 
                   return (
                     <div key={log.id} className="relative group">
@@ -263,7 +297,7 @@ export function ActivityTimeline({ logs, isSuperadmin, users }: ActivityTimeline
                       </div>
 
                       {/* Content card */}
-                      <div className="rounded-lg border bg-card p-3 transition-colors hover:bg-accent/50 ml-2">
+                      <CardWrapper className="rounded-lg border bg-card p-3 transition-colors hover:bg-accent/50 ml-2">
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex items-start gap-3 min-w-0">
                             {/* User avatar */}
@@ -304,7 +338,7 @@ export function ActivityTimeline({ logs, isSuperadmin, users }: ActivityTimeline
                             {timeAgo(log.created_at)}
                           </span>
                         </div>
-                      </div>
+                      </CardWrapper>
                     </div>
                   )
                 })}
