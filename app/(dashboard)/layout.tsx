@@ -21,20 +21,21 @@ export default async function DashboardLayout({
 
     if (user) {
       // Fetch or create profile
-      const { data: profile } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from("profiles")
-        .select("*")
+        .select("id, email, full_name, role, avatar_url, status, last_sign_in_at, invited_by, created_at, updated_at")
         .eq("id", user.id)
         .single()
 
-      if (!profile) {
+      if (profileError || !profile) {
+        // Profile doesn't exist yet, create it
         await supabase.from("profiles").insert({
           id: user.id,
           email: user.email,
           role: "admin",
         })
       } else {
-        role = profile.role as Role
+        role = (profile.role || "admin") as Role
       }
 
       // Fetch user permissions
