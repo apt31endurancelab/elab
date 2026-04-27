@@ -31,6 +31,11 @@ const pathLabels: Record<string, string> = {
   "/dashboard/affiliates/links": "Enlaces y Códigos",
   "/dashboard/affiliates/commissions": "Comisiones",
   "/dashboard/settings": "Ajustes",
+  "/dashboard/settings/access": "Gestión de Acceso",
+  "/dashboard/clients": "CRM Clientes",
+  "/dashboard/invoices": "Facturas",
+  "/dashboard/invoices/calendar": "Calendario Facturas",
+  "/dashboard/invoices/new": "Nueva Factura",
 }
 
 export function DashboardHeader({ user, isDemo = false }: { user: DemoUser; isDemo?: boolean }) {

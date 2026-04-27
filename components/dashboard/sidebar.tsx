@@ -25,11 +25,18 @@ import {
   Settings,
   LogOut,
   FlaskConical,
+  Building2,
+  FileText,
+  FilePlus,
+  CalendarDays,
+  Shield,
 } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { hasAccess } from "@/lib/access/helpers"
+import type { Role, UserPermission, SectionKey } from "@/lib/access/types"
 
 interface DemoUser {
   id: string
@@ -41,27 +48,58 @@ const navItems = [
   {
     title: "Panel Principal",
     items: [
-      { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-      { title: "Shopify Analytics", href: "/dashboard/shopify", icon: ShoppingBag },
+      { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard, sectionKey: "dashboard" as SectionKey },
+      { title: "Shopify Analytics", href: "/dashboard/shopify", icon: ShoppingBag, sectionKey: "shopify" as SectionKey },
     ],
   },
   {
     title: "Gestión",
     items: [
-      { title: "Tareas", href: "/dashboard/tasks", icon: CheckSquare },
+      { title: "Tareas", href: "/dashboard/tasks", icon: CheckSquare, sectionKey: "tasks" as SectionKey },
+    ],
+  },
+  {
+    title: "Clientes",
+    items: [
+      { title: "CRM Clientes", href: "/dashboard/clients", icon: Building2, sectionKey: "clients" as SectionKey },
+    ],
+  },
+  {
+    title: "Facturación",
+    items: [
+      { title: "Facturas", href: "/dashboard/invoices", icon: FileText, sectionKey: "invoices" as SectionKey },
+      { title: "Calendario", href: "/dashboard/invoices/calendar", icon: CalendarDays, sectionKey: "invoices/calendar" as SectionKey },
+      { title: "Nueva Factura", href: "/dashboard/invoices/new", icon: FilePlus, sectionKey: "invoices/new" as SectionKey },
     ],
   },
   {
     title: "Afiliados",
     items: [
-      { title: "Gestionar Afiliados", href: "/dashboard/affiliates", icon: Users },
-      { title: "Enlaces y Códigos", href: "/dashboard/affiliates/links", icon: Link2 },
-      { title: "Comisiones", href: "/dashboard/affiliates/commissions", icon: DollarSign },
+      { title: "Gestionar Afiliados", href: "/dashboard/affiliates", icon: Users, sectionKey: "affiliates" as SectionKey },
+      { title: "Enlaces y Códigos", href: "/dashboard/affiliates/links", icon: Link2, sectionKey: "affiliates/links" as SectionKey },
+      { title: "Comisiones", href: "/dashboard/affiliates/commissions", icon: DollarSign, sectionKey: "affiliates/commissions" as SectionKey },
     ],
   },
 ]
 
-export function DashboardSidebar({ user, isDemo = false }: { user: DemoUser; isDemo?: boolean }) {
+const roleLabels: Record<string, string> = {
+  superadmin: "Superadmin",
+  admin: "Admin",
+  viewer: "Viewer",
+  affiliate: "Afiliado",
+}
+
+export function DashboardSidebar({
+  user,
+  isDemo = false,
+  role = "admin",
+  permissions = [],
+}: {
+  user: DemoUser
+  isDemo?: boolean
+  role?: Role
+  permissions?: UserPermission[]
+}) {
   const pathname = usePathname()
   const router = useRouter()
 
@@ -97,28 +135,34 @@ export function DashboardSidebar({ user, isDemo = false }: { user: DemoUser; isD
             </div>
           </div>
         )}
-        {navItems.map((group) => (
-          <SidebarGroup key={group.title}>
-            <SidebarGroupLabel>{group.title}</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {group.items.map((item) => (
-                  <SidebarMenuItem key={item.href}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={pathname === item.href}
-                    >
-                      <Link href={item.href}>
-                        <item.icon className="h-4 w-4" />
-                        <span>{item.title}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        ))}
+        {navItems.map((group) => {
+          const visibleItems = group.items.filter(item =>
+            hasAccess(role, permissions, item.sectionKey)
+          )
+          if (visibleItems.length === 0) return null
+          return (
+            <SidebarGroup key={group.title}>
+              <SidebarGroupLabel>{group.title}</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {visibleItems.map((item) => (
+                    <SidebarMenuItem key={item.href}>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={pathname === item.href}
+                      >
+                        <Link href={item.href}>
+                          <item.icon className="h-4 w-4" />
+                          <span>{item.title}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          )
+        })}
       </SidebarContent>
       <SidebarFooter className="border-t border-sidebar-border">
         <div className="p-4 space-y-3">
@@ -131,7 +175,7 @@ export function DashboardSidebar({ user, isDemo = false }: { user: DemoUser; isD
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium truncate">{user.email}</p>
               <p className="text-xs text-sidebar-foreground/60">
-                {isDemo ? "Demo" : "Admin"}
+                {isDemo ? "Demo" : roleLabels[role] || role}
               </p>
             </div>
           </div>
@@ -147,6 +191,18 @@ export function DashboardSidebar({ user, isDemo = false }: { user: DemoUser; isD
                 Ajustes
               </Link>
             </Button>
+            {role === "superadmin" && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-sidebar-foreground/70"
+                asChild
+              >
+                <Link href="/dashboard/settings/access">
+                  <Shield className="h-4 w-4" />
+                </Link>
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="sm"

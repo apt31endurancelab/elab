@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server"
 import { DashboardSidebar } from "@/components/dashboard/sidebar"
 import { DashboardHeader } from "@/components/dashboard/header"
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
+import type { Role, UserPermission } from "@/lib/access/types"
 
 export default async function DashboardLayout({
   children,
@@ -10,12 +11,14 @@ export default async function DashboardLayout({
 }) {
   let user = null
   let isDemo = false
-  
+  let role: Role = "admin"
+  let permissions: UserPermission[] = []
+
   try {
     const supabase = await createClient()
     const { data: { user: authUser } } = await supabase.auth.getUser()
     user = authUser
-    
+
     if (user) {
       // Fetch or create profile
       const { data: profile } = await supabase
@@ -30,6 +33,18 @@ export default async function DashboardLayout({
           email: user.email,
           role: "admin",
         })
+      } else {
+        role = profile.role as Role
+      }
+
+      // Fetch user permissions
+      const { data: perms } = await supabase
+        .from("user_permissions")
+        .select("section_key, can_write")
+        .eq("user_id", user.id)
+
+      if (perms) {
+        permissions = perms as UserPermission[]
       }
     }
   } catch {
@@ -42,6 +57,11 @@ export default async function DashboardLayout({
     isDemo = true
   }
 
+  // Demo mode gets superadmin access
+  if (isDemo) {
+    role = "superadmin"
+  }
+
   const demoUser = {
     id: "demo-user",
     email: "demo@lactatepro.com",
@@ -50,7 +70,7 @@ export default async function DashboardLayout({
 
   return (
     <SidebarProvider>
-      <DashboardSidebar user={user || demoUser} isDemo={isDemo} />
+      <DashboardSidebar user={user || demoUser} isDemo={isDemo} role={role} permissions={permissions} />
       <SidebarInset>
         <DashboardHeader user={user || demoUser} isDemo={isDemo} />
         <main className="flex-1 p-6">

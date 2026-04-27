@@ -9,11 +9,10 @@ export default async function Home() {
     if (user) {
       redirect("/dashboard")
     } else {
-      // Even without user, allow access to dashboard in demo mode
-      redirect("/dashboard")
+      redirect("/auth/login")
     }
   } catch {
-    // If Supabase fails, redirect to dashboard in demo mode
-    redirect("/dashboard")
+    // If Supabase fails, redirect to login
+    redirect("/auth/login")
   }
 }

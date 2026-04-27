@@ -127,3 +127,121 @@ ALTER TABLE public.affiliate_payouts ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "affiliate_payouts_select_own" ON public.affiliate_payouts FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "affiliate_payouts_insert_own" ON public.affiliate_payouts FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "affiliate_payouts_update_own" ON public.affiliate_payouts FOR UPDATE USING (auth.uid() = user_id);
+
+-- Clients (CRM)
+CREATE TABLE IF NOT EXISTS public.clients (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  rut TEXT,
+  address TEXT,
+  phone TEXT,
+  contact_person TEXT,
+  email TEXT,
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.clients ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "clients_select_own" ON public.clients FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "clients_insert_own" ON public.clients FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "clients_update_own" ON public.clients FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "clients_delete_own" ON public.clients FOR DELETE USING (auth.uid() = user_id);
+
+-- Products (catálogo para facturas)
+CREATE TABLE IF NOT EXISTS public.products (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  description TEXT,
+  price DECIMAL(12,2) NOT NULL DEFAULT 0,
+  stock INTEGER NOT NULL DEFAULT 0,
+  sku TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "products_select_own" ON public.products FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "products_insert_own" ON public.products FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "products_update_own" ON public.products FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "products_delete_own" ON public.products FOR DELETE USING (auth.uid() = user_id);
+
+-- Invoices
+CREATE TABLE IF NOT EXISTS public.invoices (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  client_id UUID NOT NULL REFERENCES public.clients(id),
+  invoice_number TEXT NOT NULL,
+  type TEXT DEFAULT 'cotizacion' CHECK (type IN ('cotizacion', 'factura')),
+  status TEXT DEFAULT 'draft' CHECK (status IN ('draft', 'sent', 'paid', 'overdue', 'cancelled')),
+  issue_date DATE DEFAULT CURRENT_DATE,
+  validity_days INTEGER DEFAULT 30,
+  subtotal DECIMAL(12,2) DEFAULT 0,
+  tax_rate DECIMAL(5,2) DEFAULT 19.00,
+  tax_amount DECIMAL(12,2) DEFAULT 0,
+  total DECIMAL(12,2) DEFAULT 0,
+  is_recurring BOOLEAN DEFAULT FALSE,
+  recurring_frequency TEXT CHECK (recurring_frequency IN ('monthly', 'quarterly', 'yearly')),
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.invoices ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "invoices_select_own" ON public.invoices FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "invoices_insert_own" ON public.invoices FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "invoices_update_own" ON public.invoices FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "invoices_delete_own" ON public.invoices FOR DELETE USING (auth.uid() = user_id);
+
+-- Invoice line items
+CREATE TABLE IF NOT EXISTS public.invoice_items (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  invoice_id UUID NOT NULL REFERENCES public.invoices(id) ON DELETE CASCADE,
+  product_id UUID REFERENCES public.products(id),
+  description TEXT NOT NULL,
+  quantity INTEGER NOT NULL DEFAULT 1,
+  unit_price DECIMAL(12,2) NOT NULL DEFAULT 0,
+  amount DECIMAL(12,2) NOT NULL DEFAULT 0
+);
+
+ALTER TABLE public.invoice_items ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "invoice_items_select_own" ON public.invoice_items FOR SELECT USING (
+  EXISTS (SELECT 1 FROM public.invoices WHERE id = invoice_items.invoice_id AND user_id = auth.uid())
+);
+CREATE POLICY "invoice_items_insert_own" ON public.invoice_items FOR INSERT WITH CHECK (
+  EXISTS (SELECT 1 FROM public.invoices WHERE id = invoice_items.invoice_id AND user_id = auth.uid())
+);
+CREATE POLICY "invoice_items_update_own" ON public.invoice_items FOR UPDATE USING (
+  EXISTS (SELECT 1 FROM public.invoices WHERE id = invoice_items.invoice_id AND user_id = auth.uid())
+);
+CREATE POLICY "invoice_items_delete_own" ON public.invoice_items FOR DELETE USING (
+  EXISTS (SELECT 1 FROM public.invoices WHERE id = invoice_items.invoice_id AND user_id = auth.uid())
+);
+
+-- Client activities (CRM timeline)
+CREATE TABLE IF NOT EXISTS public.client_activities (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  client_id UUID NOT NULL REFERENCES public.clients(id) ON DELETE CASCADE,
+  invoice_id UUID REFERENCES public.invoices(id) ON DELETE SET NULL,
+  type TEXT NOT NULL CHECK (type IN ('note', 'email_sent', 'email_reminder', 'invoice_created', 'invoice_sent', 'invoice_paid', 'invoice_overdue', 'payment_reminder', 'call', 'meeting', 'other')),
+  title TEXT NOT NULL,
+  description TEXT,
+  is_reminder BOOLEAN DEFAULT FALSE,
+  reminder_date DATE,
+  reminder_completed BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.client_activities ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "client_activities_select_own" ON public.client_activities FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "client_activities_insert_own" ON public.client_activities FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "client_activities_update_own" ON public.client_activities FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "client_activities_delete_own" ON public.client_activities FOR DELETE USING (auth.uid() = user_id);
