@@ -94,11 +94,14 @@ export function RegisterSaleDialog({ isDemo = false }: { isDemo?: boolean }) {
     }
 
     const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
 
     await supabase.from("affiliate_sales").insert({
+      user_id: user.id,
       affiliate_id: selectedAffiliate,
       order_id: orderId,
-      sale_amount: parseFloat(saleAmount),
+      order_total: parseFloat(saleAmount),
       commission_amount: parseFloat(commission),
       status: "pending",
     })

@@ -33,9 +33,9 @@ export function PayoutActions({ payout, isDemo = false }: { payout: Payout; isDe
     setLoading(true)
     const supabase = createClient()
     
-    const updates: { status: string; paid_at?: string } = { status }
-    if (status === "paid") {
-      updates.paid_at = new Date().toISOString()
+    const updates: { status: string; processed_at?: string } = { status }
+    if (status === "completed") {
+      updates.processed_at = new Date().toISOString()
     }
     
     await supabase
@@ -57,7 +57,7 @@ export function PayoutActions({ payout, isDemo = false }: { payout: Payout; isDe
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => updateStatus("paid")}>
+        <DropdownMenuItem onClick={() => updateStatus("completed")}>
           <CheckCircle2 className="h-4 w-4 mr-2" />
           Marcar como Pagado
         </DropdownMenuItem>

@@ -16,10 +16,9 @@ import { demoAffiliates } from "@/lib/demo-data"
 interface Affiliate {
   id: string
   name: string
-  code: string
-  discount_percent: number
-  affiliate_link?: string
-  referral_link?: string
+  discount_code: string
+  discount_percentage: number
+  referral_link: string | null
   status: string
 }
 
@@ -33,7 +32,15 @@ async function getAffiliates(): Promise<{ affiliates: Affiliate[]; isDemo: boole
     
     return { affiliates: affiliates || [], isDemo: false }
   } catch {
-    return { affiliates: demoAffiliates as Affiliate[], isDemo: true }
+    const demoMapped = demoAffiliates.map(a => ({
+      id: a.id,
+      name: a.name,
+      discount_code: a.code || "",
+      discount_percentage: a.discount_percent || 0,
+      referral_link: a.referral_link || null,
+      status: a.status,
+    }))
+    return { affiliates: demoMapped, isDemo: true }
   }
 }
 
@@ -104,17 +111,17 @@ export default async function LinksPage() {
               </TableHeader>
               <TableBody>
                 {affiliates.map((affiliate) => {
-                  const link = affiliate.affiliate_link || affiliate.referral_link || `https://${storeUrl}?ref=${affiliate.code}`
+                  const link = affiliate.referral_link || `https://${storeUrl}?ref=${affiliate.discount_code}`
                   return (
                     <TableRow key={affiliate.id}>
                       <TableCell className="font-medium">{affiliate.name}</TableCell>
                       <TableCell>
                         <code className="bg-muted px-2 py-1 rounded text-sm font-mono">
-                          {affiliate.code}
+                          {affiliate.discount_code}
                         </code>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline">{affiliate.discount_percent}% OFF</Badge>
+                        <Badge variant="outline">{affiliate.discount_percentage}% OFF</Badge>
                       </TableCell>
                       <TableCell className="max-w-[300px]">
                         <code className="text-xs text-muted-foreground truncate block">
@@ -128,7 +135,7 @@ export default async function LinksPage() {
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-1">
-                          <CopyButton text={affiliate.code} label="Código" />
+                          <CopyButton text={affiliate.discount_code} label="Código" />
                           <CopyButton text={link} label="Enlace" />
                         </div>
                       </TableCell>

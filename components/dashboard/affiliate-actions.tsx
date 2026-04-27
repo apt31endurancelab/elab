@@ -23,8 +23,7 @@ type Affiliate = {
   commission_rate?: number
   commission_percent?: number
   discount_percent?: number
-  affiliate_link?: string
-  referral_link?: string
+  referral_link?: string | null
   status: string
 }
 
@@ -32,7 +31,7 @@ export function AffiliateActions({ affiliate, isDemo = false }: { affiliate: Aff
   const router = useRouter()
   const [loading, setLoading] = useState(false)
 
-  const link = affiliate.affiliate_link || affiliate.referral_link || ""
+  const link = affiliate.referral_link || ""
   
   const copyLink = () => {
     navigator.clipboard.writeText(link)

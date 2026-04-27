@@ -19,10 +19,10 @@ interface Sale {
   created_at: string
   affiliate_id: string
   order_id: string
-  sale_amount: number
+  order_total: number
   commission_amount: number
   status: string
-  affiliates?: { name: string; email: string; code: string } | null
+  affiliates?: { name: string; email: string; discount_code: string } | null
   affiliate_name?: string
 }
 
@@ -51,7 +51,7 @@ async function getCommissionsData(): Promise<{
         affiliates (
           name,
           email,
-          code
+          discount_code
         )
       `)
       .order("created_at", { ascending: false })
@@ -76,15 +76,22 @@ async function getCommissionsData(): Promise<{
         affiliate_id: "demo-2",
         amount: 500,
         payment_method: "Transferencia",
-        status: "paid",
+        status: "completed",
         affiliates: { name: "María López", email: "maria@example.com" }
       }
     ]
     
-    const sales = demoCommissions.map(c => ({
-      ...c,
-      affiliates: { name: c.affiliate_name, email: "", code: "" }
-    })) as Sale[]
+    const sales: Sale[] = demoCommissions.map(c => ({
+      id: c.id,
+      created_at: c.created_at,
+      affiliate_id: c.affiliate_id,
+      order_id: c.order_id,
+      order_total: c.sale_amount,
+      commission_amount: c.commission_amount,
+      status: c.status,
+      affiliate_name: c.affiliate_name,
+      affiliates: { name: c.affiliate_name, email: "", discount_code: "" },
+    }))
     
     return { sales, payouts: demoPayouts, isDemo: true }
   }
@@ -93,7 +100,7 @@ async function getCommissionsData(): Promise<{
 export default async function CommissionsPage() {
   const { sales, payouts, isDemo } = await getCommissionsData()
 
-  const totalSales = sales.reduce((sum, s) => sum + Number(s.sale_amount), 0)
+  const totalSales = sales.reduce((sum, s) => sum + Number(s.order_total), 0)
   const totalCommissions = sales.reduce((sum, s) => sum + Number(s.commission_amount), 0)
   const pendingCommissions = sales
     .filter(s => s.status === "pending")
@@ -189,7 +196,7 @@ export default async function CommissionsPage() {
                       </code>
                     </TableCell>
                     <TableCell>
-                      ${Number(sale.sale_amount).toFixed(2)}
+                      ${Number(sale.order_total).toFixed(2)}
                     </TableCell>
                     <TableCell className="font-medium text-emerald-600 dark:text-emerald-400">
                       ${Number(sale.commission_amount).toFixed(2)}
@@ -255,8 +262,8 @@ export default async function CommissionsPage() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={payout.status === "paid" ? "default" : "secondary"}>
-                        {payout.status === "paid" ? "Pagado" : "Pendiente"}
+                      <Badge variant={payout.status === "completed" ? "default" : "secondary"}>
+                        {payout.status === "completed" ? "Pagado" : "Pendiente"}
                       </Badge>
                     </TableCell>
                     <TableCell>

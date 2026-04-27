@@ -1,13 +1,13 @@
 import { createClient } from "@/lib/supabase/server"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
 } from "@/components/ui/table"
 import { Users, DollarSign, TrendingUp, Percent } from "lucide-react"
 import { CreateAffiliateDialog } from "@/components/dashboard/create-affiliate-dialog"
@@ -18,22 +18,20 @@ interface AffiliateWithStats {
   id: string
   name: string
   email: string
-  code: string
-  commission_rate?: number
-  commission_percent?: number
-  discount_percent?: number
+  discount_code: string
+  commission_rate: number
+  discount_percentage: number
+  referral_link: string | null
   status: string
   totalSales: number
   totalCommission: number
   salesCount: number
-  total_sales?: number
-  total_commission?: number
 }
 
 async function getAffiliates(): Promise<{ affiliates: AffiliateWithStats[]; isDemo: boolean }> {
   try {
     const supabase = await createClient()
-    
+
     const { data: affiliates } = await supabase
       .from("affiliates")
       .select("*")
@@ -41,14 +39,21 @@ async function getAffiliates(): Promise<{ affiliates: AffiliateWithStats[]; isDe
 
     const { data: salesData } = await supabase
       .from("affiliate_sales")
-      .select("affiliate_id, sale_amount, commission_amount")
+      .select("affiliate_id, order_total, commission_amount")
 
     const affiliateStats = affiliates?.map(affiliate => {
       const sales = salesData?.filter(s => s.affiliate_id === affiliate.id) || []
-      const totalSales = sales.reduce((sum, s) => sum + Number(s.sale_amount), 0)
+      const totalSales = sales.reduce((sum, s) => sum + Number(s.order_total), 0)
       const totalCommission = sales.reduce((sum, s) => sum + Number(s.commission_amount), 0)
       return {
-        ...affiliate,
+        id: affiliate.id,
+        name: affiliate.name,
+        email: affiliate.email,
+        discount_code: affiliate.discount_code || "",
+        commission_rate: Number(affiliate.commission_rate),
+        discount_percentage: Number(affiliate.discount_percentage),
+        referral_link: affiliate.referral_link,
+        status: affiliate.status,
         totalSales,
         totalCommission,
         salesCount: sales.length,
@@ -58,11 +63,17 @@ async function getAffiliates(): Promise<{ affiliates: AffiliateWithStats[]; isDe
     return { affiliates: affiliateStats, isDemo: false }
   } catch {
     const demoStats = demoAffiliates.map(a => ({
-      ...a,
-      commission_rate: a.commission_percent,
-      totalSales: a.total_sales,
-      totalCommission: a.total_commission,
-      salesCount: Math.floor(a.total_sales / 150),
+      id: a.id,
+      name: a.name,
+      email: a.email,
+      discount_code: a.code || "",
+      commission_rate: a.commission_percent || 0,
+      discount_percentage: a.discount_percent || 0,
+      referral_link: null,
+      status: a.status,
+      totalSales: a.total_sales || 0,
+      totalCommission: a.total_commission || 0,
+      salesCount: Math.floor((a.total_sales || 0) / 150),
     }))
     return { affiliates: demoStats, isDemo: true }
   }
@@ -73,10 +84,10 @@ export default async function AffiliatesPage() {
 
   const totalAffiliates = affiliates.length
   const activeAffiliates = affiliates.filter(a => a.status === "active").length
-  const totalSalesAmount = affiliates.reduce((sum, a) => sum + (a.totalSales || 0), 0)
-  const totalCommissions = affiliates.reduce((sum, a) => sum + (a.totalCommission || 0), 0)
-  const avgCommission = affiliates.length 
-    ? affiliates.reduce((sum, a) => sum + (a.commission_rate || a.commission_percent || 0), 0) / affiliates.length
+  const totalSalesAmount = affiliates.reduce((sum, a) => sum + a.totalSales, 0)
+  const totalCommissions = affiliates.reduce((sum, a) => sum + a.totalCommission, 0)
+  const avgCommission = affiliates.length
+    ? affiliates.reduce((sum, a) => sum + a.commission_rate, 0) / affiliates.length
     : 0
 
   const stats = [
@@ -88,13 +99,13 @@ export default async function AffiliatesPage() {
     },
     {
       title: "Ventas Generadas",
-      value: `$${totalSalesAmount.toLocaleString("es-ES", { minimumFractionDigits: 2 })}`,
+      value: `$${totalSalesAmount.toLocaleString("es-CL")}`,
       description: "Total via afiliados",
       icon: TrendingUp,
     },
     {
       title: "Comisiones Totales",
-      value: `$${totalCommissions.toLocaleString("es-ES", { minimumFractionDigits: 2 })}`,
+      value: `$${totalCommissions.toLocaleString("es-CL")}`,
       description: "Pagadas + Pendientes",
       icon: DollarSign,
     },
@@ -160,18 +171,18 @@ export default async function AffiliatesPage() {
                     <TableCell className="text-muted-foreground">{affiliate.email}</TableCell>
                     <TableCell>
                       <code className="bg-muted px-2 py-1 rounded text-sm">
-                        {affiliate.code}
+                        {affiliate.discount_code}
                       </code>
                     </TableCell>
-                    <TableCell>{affiliate.commission_rate || affiliate.commission_percent}%</TableCell>
+                    <TableCell>{affiliate.commission_rate}%</TableCell>
                     <TableCell>
-                      ${(affiliate.totalSales || 0).toLocaleString("es-ES", { minimumFractionDigits: 2 })}
+                      ${affiliate.totalSales.toLocaleString("es-CL")}
                       <span className="text-muted-foreground text-xs ml-1">
                         ({affiliate.salesCount})
                       </span>
                     </TableCell>
                     <TableCell className="font-medium text-emerald-600 dark:text-emerald-400">
-                      ${(affiliate.totalCommission || 0).toLocaleString("es-ES", { minimumFractionDigits: 2 })}
+                      ${affiliate.totalCommission.toLocaleString("es-CL")}
                     </TableCell>
                     <TableCell>
                       <Badge variant={affiliate.status === "active" ? "default" : "secondary"}>
@@ -179,7 +190,7 @@ export default async function AffiliatesPage() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <AffiliateActions affiliate={affiliate} isDemo={isDemo} />
+                      <AffiliateActions affiliate={{...affiliate, code: affiliate.discount_code}} isDemo={isDemo} />
                     </TableCell>
                   </TableRow>
                 ))}

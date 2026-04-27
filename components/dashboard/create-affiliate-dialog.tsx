@@ -72,14 +72,14 @@ export function CreateAffiliateDialog({ isDemo = false }: { isDemo?: boolean }) 
     const affiliateLink = `https://${storeUrl}?ref=${code}`
 
     const { error } = await supabase.from("affiliates").insert({
+      user_id: user.id,
       name,
       email,
-      code: code.toUpperCase(),
+      discount_code: code.toUpperCase(),
       commission_rate: parseInt(commissionRate),
-      discount_percent: parseInt(discountPercent),
-      affiliate_link: affiliateLink,
+      discount_percentage: parseInt(discountPercent),
+      referral_link: affiliateLink,
       status: "active",
-      created_by: user.id,
     })
 
     if (!error) {

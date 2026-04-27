@@ -139,7 +139,8 @@ export function InvoiceActions({
     setLoading(true)
     const supabase = createClient()
     await supabase.from("invoices").delete().eq("id", invoice.id)
-    logActivityClient({ action: "invoice.deleted", entityType: "invoice", entityId: invoice.id, entityName: `${typeLabel} ${invoice.invoice_number}` })
+    const label = invoice.type === "cotizacion" ? "Cotización" : "Factura"
+    logActivityClient({ action: "invoice.deleted", entityType: "invoice", entityId: invoice.id, entityName: `${label} ${invoice.invoice_number}` })
     setLoading(false)
     router.refresh()
   }
