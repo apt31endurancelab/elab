@@ -25,6 +25,7 @@ import {
   Ban,
   FileDown,
   Building2,
+  CheckSquare,
 } from "lucide-react"
 import { openInvoicePdf } from "./invoice-pdf"
 
@@ -53,10 +54,21 @@ export type CalendarInvoice = {
   items: { description: string; quantity: number; unit_price: number; amount: number }[]
 }
 
+export type CalendarTask = {
+  id: string
+  title: string
+  description: string | null
+  status: string
+  priority: string
+  due_date: string
+  assigned_to: string | null
+}
+
 type CalendarEvent = {
   date: string
-  type: "issued" | "due" | "paid" | "overdue" | "recurring_next"
-  invoice: CalendarInvoice
+  type: "issued" | "due" | "paid" | "overdue" | "recurring_next" | "task" | "task_overdue"
+  invoice?: CalendarInvoice
+  task?: CalendarTask
   label: string
 }
 
@@ -66,6 +78,8 @@ const eventConfig: Record<string, { color: string; bg: string; icon: typeof File
   paid: { color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-500/15 border-emerald-500/30", icon: CheckCircle2, label: "Cobrada" },
   overdue: { color: "text-red-600 dark:text-red-400", bg: "bg-red-500/15 border-red-500/30", icon: AlertTriangle, label: "Vencida" },
   recurring_next: { color: "text-purple-600 dark:text-purple-400", bg: "bg-purple-500/15 border-purple-500/30", icon: RefreshCw, label: "Recurrente" },
+  task: { color: "text-cyan-600 dark:text-cyan-400", bg: "bg-cyan-500/15 border-cyan-500/30", icon: CheckSquare, label: "Tarea" },
+  task_overdue: { color: "text-red-600 dark:text-red-400", bg: "bg-red-500/15 border-red-500/30", icon: CheckSquare, label: "Tarea vencida" },
 }
 
 const statusLabels: Record<string, string> = {
@@ -98,8 +112,10 @@ function getNextRecurringDate(issueDate: string, frequency: string | null): stri
   return d.toISOString().split("T")[0]
 }
 
-function generateEvents(invoices: CalendarInvoice[]): CalendarEvent[] {
+function generateEvents(invoices: CalendarInvoice[], tasks: CalendarTask[]): CalendarEvent[] {
   const events: CalendarEvent[] = []
+
+  // Invoice events
   for (const inv of invoices) {
     events.push({ date: inv.issue_date, type: "issued", invoice: inv, label: `Emitida: ${inv.invoice_number}` })
 
@@ -126,6 +142,20 @@ function generateEvents(invoices: CalendarInvoice[]): CalendarEvent[] {
       }
     }
   }
+
+  // Task events
+  for (const task of tasks) {
+    if (!task.due_date) continue
+    const isOverdue = task.status !== "completed" && new Date(task.due_date) < new Date()
+    const isCompleted = task.status === "completed"
+    events.push({
+      date: task.due_date,
+      type: isOverdue ? "task_overdue" : "task",
+      task,
+      label: `${isCompleted ? "✓ " : ""}${task.title}`,
+    })
+  }
+
   return events
 }
 
@@ -141,14 +171,14 @@ function getFirstDayOfMonth(year: number, month: number): number {
 const MONTH_NAMES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
 const DAY_NAMES = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
 
-export function InvoiceCalendar({ invoices }: { invoices: CalendarInvoice[] }) {
+export function InvoiceCalendar({ invoices, tasks = [] }: { invoices: CalendarInvoice[]; tasks?: CalendarTask[] }) {
   const today = new Date()
   const [currentYear, setCurrentYear] = useState(today.getFullYear())
   const [currentMonth, setCurrentMonth] = useState(today.getMonth())
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [detailOpen, setDetailOpen] = useState(false)
 
-  const events = useMemo(() => generateEvents(invoices), [invoices])
+  const events = useMemo(() => generateEvents(invoices, tasks), [invoices, tasks])
 
   const eventsByDate = useMemo(() => {
     const map: Record<string, CalendarEvent[]> = {}
@@ -210,6 +240,7 @@ export function InvoiceCalendar({ invoices }: { invoices: CalendarInvoice[] }) {
     paid: monthEvents.filter(e => e.type === "paid").length,
     overdue: monthEvents.filter(e => e.type === "overdue").length,
     recurring: monthEvents.filter(e => e.type === "recurring_next").length,
+    tasks: monthEvents.filter(e => e.type === "task" || e.type === "task_overdue").length,
   }
 
   const selectedEvents = selectedDate ? eventsByDate[selectedDate] || [] : []
@@ -217,13 +248,14 @@ export function InvoiceCalendar({ invoices }: { invoices: CalendarInvoice[] }) {
   return (
     <div className="space-y-4">
       {/* Summary cards */}
-      <div className="grid gap-3 grid-cols-2 md:grid-cols-5">
+      <div className="grid gap-3 grid-cols-2 md:grid-cols-6">
         {[
           { label: "Emitidas", count: monthSummary.issued, type: "issued" as const },
           { label: "Vencimientos", count: monthSummary.due, type: "due" as const },
           { label: "Cobradas", count: monthSummary.paid, type: "paid" as const },
           { label: "Vencidas", count: monthSummary.overdue, type: "overdue" as const },
           { label: "Recurrentes", count: monthSummary.recurring, type: "recurring_next" as const },
+          { label: "Tareas", count: monthSummary.tasks, type: "task" as const },
         ].map(item => {
           const config = eventConfig[item.type]
           const Icon = config.icon
@@ -312,10 +344,11 @@ export function InvoiceCalendar({ invoices }: { invoices: CalendarInvoice[] }) {
                     {dayEvents.slice(0, 3).map((event, j) => {
                       const config = eventConfig[event.type]
                       const Icon = config.icon
+                      const cellLabel = event.invoice ? event.invoice.invoice_number : event.task?.title || ""
                       return (
                         <div key={j} className={cn("flex items-center gap-1 px-1 py-0.5 rounded text-[10px] leading-tight border", config.bg)}>
                           <Icon className={cn("h-2.5 w-2.5 shrink-0", config.color)} />
-                          <span className={cn("truncate", config.color)}>{event.invoice.invoice_number}</span>
+                          <span className={cn("truncate", config.color)}>{cellLabel}</span>
                         </div>
                       )
                     })}
@@ -362,13 +395,27 @@ export function InvoiceCalendar({ invoices }: { invoices: CalendarInvoice[] }) {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium">{event.label}</p>
-                        <Link
-                          href={`/dashboard/clients/${event.invoice.client_id}`}
-                          className="text-xs text-primary hover:underline"
-                        >
-                          {event.invoice.client_name}
-                        </Link>
-                        <span className="text-xs text-muted-foreground"> — {formatCLP(event.invoice.total)}</span>
+                        {event.invoice && (
+                          <>
+                            <Link
+                              href={`/dashboard/clients/${event.invoice.client_id}`}
+                              className="text-xs text-primary hover:underline"
+                            >
+                              {event.invoice.client_name}
+                            </Link>
+                            <span className="text-xs text-muted-foreground"> — {formatCLP(event.invoice.total)}</span>
+                          </>
+                        )}
+                        {event.task && (
+                          <div className="flex items-center gap-2">
+                            {event.task.assigned_to && (
+                              <span className="text-xs text-muted-foreground">{event.task.assigned_to}</span>
+                            )}
+                            <Badge variant={event.task.priority === "high" ? "destructive" : event.task.priority === "medium" ? "secondary" : "outline"} className="text-[10px] px-1.5 py-0">
+                              {event.task.priority === "high" ? "Alta" : event.task.priority === "medium" ? "Media" : "Baja"}
+                            </Badge>
+                          </div>
+                        )}
                       </div>
                       <div className="text-right shrink-0">
                         <p className="text-sm font-medium">
@@ -404,6 +451,38 @@ export function InvoiceCalendar({ invoices }: { invoices: CalendarInvoice[] }) {
             {selectedEvents.map((event, i) => {
               const config = eventConfig[event.type]
               const Icon = config.icon
+
+              // Task event detail
+              if (event.task) {
+                const priorityLabels: Record<string, string> = { high: "Alta", medium: "Media", low: "Baja" }
+                const taskStatusLabels: Record<string, string> = { pending: "Pendiente", in_progress: "En progreso", completed: "Completada" }
+                return (
+                  <div key={i} className={cn("p-3 rounded-lg border", config.bg)}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <Icon className={cn("h-4 w-4", config.color)} />
+                      <span className={cn("text-sm font-medium", config.color)}>{config.label}</span>
+                    </div>
+                    <div className="space-y-1 text-sm">
+                      <div className="flex justify-between">
+                        <span className="font-medium">{event.task.title}</span>
+                        <Badge variant={event.task.status === "completed" ? "default" : event.task.status === "in_progress" ? "secondary" : "outline"}>
+                          {taskStatusLabels[event.task.status] || event.task.status}
+                        </Badge>
+                      </div>
+                      {event.task.description && (
+                        <p className="text-xs text-muted-foreground">{event.task.description}</p>
+                      )}
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <span>Prioridad: {priorityLabels[event.task.priority] || event.task.priority}</span>
+                        {event.task.assigned_to && <span>— Asignada: {event.task.assigned_to}</span>}
+                      </div>
+                    </div>
+                  </div>
+                )
+              }
+
+              // Invoice event detail
+              if (!event.invoice) return null
 
               return (
                 <div key={i} className={cn("p-3 rounded-lg border", config.bg)}>
