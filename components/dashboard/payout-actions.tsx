@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { createClient } from "@/lib/supabase/client"
+import { logActivityClient } from "@/lib/activity-log-client"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import {
@@ -41,7 +42,9 @@ export function PayoutActions({ payout, isDemo = false }: { payout: Payout; isDe
       .from("affiliate_payouts")
       .update(updates)
       .eq("id", payout.id)
-    
+
+    logActivityClient({ action: "payout.updated", entityType: "payout", entityId: payout.id, metadata: { new_status: status } })
+
     router.refresh()
     setLoading(false)
   }

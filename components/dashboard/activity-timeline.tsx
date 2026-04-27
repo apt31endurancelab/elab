@@ -65,6 +65,13 @@ const actionConfig: Record<string, { icon: React.ElementType; color: string; bgC
   "affiliate.updated":    { icon: Users,        color: "text-indigo-400",  bgColor: "bg-indigo-500/10 border-indigo-500/20", label: "Afiliado actualizado" },
   "user.invited":         { icon: UserPlus,     color: "text-violet-500",  bgColor: "bg-violet-500/10 border-violet-500/20", label: "Usuario invitado" },
   "user.role_changed":    { icon: Shield,       color: "text-orange-500",  bgColor: "bg-orange-500/10 border-orange-500/20", label: "Rol cambiado" },
+  "task.deleted":         { icon: CheckSquare,  color: "text-red-500",     bgColor: "bg-red-500/10 border-red-500/20",      label: "Tarea eliminada" },
+  "client.deleted":       { icon: Building2,    color: "text-red-500",     bgColor: "bg-red-500/10 border-red-500/20",      label: "Cliente eliminado" },
+  "invoice.deleted":      { icon: FileText,     color: "text-red-500",     bgColor: "bg-red-500/10 border-red-500/20",      label: "Factura eliminada" },
+  "affiliate.deleted":    { icon: Users,        color: "text-red-500",     bgColor: "bg-red-500/10 border-red-500/20",      label: "Afiliado eliminado" },
+  "affiliate.status_changed": { icon: Users,    color: "text-amber-500",   bgColor: "bg-amber-500/10 border-amber-500/20",  label: "Estado afiliado" },
+  "sale.registered":      { icon: DollarSign,   color: "text-blue-500",    bgColor: "bg-blue-500/10 border-blue-500/20",    label: "Venta registrada" },
+  "payout.updated":       { icon: DollarSign,   color: "text-emerald-500", bgColor: "bg-emerald-500/10 border-emerald-500/20", label: "Pago actualizado" },
   "shopify.order_synced": { icon: ShoppingBag,  color: "text-green-500",   bgColor: "bg-green-500/10 border-green-500/20",  label: "Pedido Shopify" },
 }
 
@@ -77,6 +84,8 @@ const entityTypeLabels: Record<string, string> = {
   affiliate: "Afiliados",
   user: "Usuarios",
   shopify: "Shopify",
+  sale: "Ventas",
+  payout: "Pagos",
 }
 
 function timeAgo(date: string): string {
@@ -128,6 +137,9 @@ function getMetadataDescription(log: ActivityLog): string | null {
 }
 
 function getEntityLink(log: ActivityLog): string | null {
+  // Deleted entities should not be clickable
+  if (log.action.endsWith(".deleted")) return null
+
   const id = log.entity_id
   switch (log.entity_type) {
     case "client":
@@ -137,7 +149,9 @@ function getEntityLink(log: ActivityLog): string | null {
     case "task":
       return "/dashboard/tasks"
     case "affiliate":
-      return "/dashboard/affiliates"
+    case "sale":
+    case "payout":
+      return "/dashboard/affiliates/commissions"
     case "user":
       return log.action === "user.invited" || log.action === "user.role_changed"
         ? "/dashboard/settings/access"

@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { createClient } from "@/lib/supabase/client"
+import { logActivityClient } from "@/lib/activity-log-client"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import {
@@ -52,11 +53,14 @@ export function AffiliateActions({ affiliate, isDemo = false }: { affiliate: Aff
     setLoading(true)
     const supabase = createClient()
     
+    const newStatus = affiliate.status === "active" ? "inactive" : "active"
     await supabase
       .from("affiliates")
-      .update({ status: affiliate.status === "active" ? "inactive" : "active" })
+      .update({ status: newStatus })
       .eq("id", affiliate.id)
-    
+
+    logActivityClient({ action: "affiliate.status_changed", entityType: "affiliate", entityId: affiliate.id, entityName: affiliate.name, metadata: { old_status: affiliate.status, new_status: newStatus } })
+
     router.refresh()
     setLoading(false)
   }
@@ -66,19 +70,21 @@ export function AffiliateActions({ affiliate, isDemo = false }: { affiliate: Aff
       toast.info("Función no disponible en modo demo")
       return
     }
-    
+
     if (!confirm("¿Estás seguro de eliminar este afiliado? Esta acción no se puede deshacer.")) {
       return
     }
-    
+
     setLoading(true)
     const supabase = createClient()
-    
+
     await supabase
       .from("affiliates")
       .delete()
       .eq("id", affiliate.id)
-    
+
+    logActivityClient({ action: "affiliate.deleted", entityType: "affiliate", entityId: affiliate.id, entityName: affiliate.name })
+
     router.refresh()
     setLoading(false)
   }

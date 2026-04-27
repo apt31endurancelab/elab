@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { createClient } from "@/lib/supabase/client"
+import { logActivityClient } from "@/lib/activity-log-client"
 import { useRouter } from "next/navigation"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -159,6 +160,10 @@ export function TaskList({ tasks, isDemo = false }: { tasks: Task[]; isDemo?: bo
       .update({ status })
       .eq("id", taskId)
 
+    const task = tasks.find(t => t.id === taskId)
+    const action = status === "completed" ? "task.completed" as const : "task.updated" as const
+    logActivityClient({ action, entityType: "task", entityId: taskId, entityName: task?.title, metadata: { new_status: status } })
+
     router.refresh()
     setLoading(null)
   }
@@ -169,6 +174,8 @@ export function TaskList({ tasks, isDemo = false }: { tasks: Task[]; isDemo?: bo
       return
     }
 
+    const task = tasks.find(t => t.id === taskId)
+
     setLoading(taskId)
     const supabase = createClient()
 
@@ -176,6 +183,8 @@ export function TaskList({ tasks, isDemo = false }: { tasks: Task[]; isDemo?: bo
       .from("tasks")
       .delete()
       .eq("id", taskId)
+
+    logActivityClient({ action: "task.deleted", entityType: "task", entityId: taskId, entityName: task?.title })
 
     router.refresh()
     setLoading(null)

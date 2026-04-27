@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { logActivityClient } from "@/lib/activity-log-client"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -101,6 +102,8 @@ export function RegisterSaleDialog({ isDemo = false }: { isDemo?: boolean }) {
       commission_amount: parseFloat(commission),
       status: "pending",
     })
+
+    logActivityClient({ action: "sale.registered", entityType: "sale", entityName: `Pedido ${orderId}`, metadata: { amount: parseFloat(saleAmount), commission: parseFloat(commission) } })
 
     setOpen(false)
     setSelectedAffiliate("")

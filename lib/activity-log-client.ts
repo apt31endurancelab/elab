@@ -2,13 +2,14 @@ import { createClient } from "@/lib/supabase/client"
 
 export type ActivityAction =
   | 'user.login' | 'user.logout'
-  | 'task.created' | 'task.updated' | 'task.completed'
-  | 'client.created' | 'client.updated'
-  | 'invoice.created' | 'invoice.sent' | 'invoice.paid'
-  | 'affiliate.created' | 'affiliate.updated'
+  | 'task.created' | 'task.updated' | 'task.completed' | 'task.deleted'
+  | 'client.created' | 'client.updated' | 'client.deleted'
+  | 'invoice.created' | 'invoice.sent' | 'invoice.paid' | 'invoice.deleted'
+  | 'affiliate.created' | 'affiliate.updated' | 'affiliate.deleted' | 'affiliate.status_changed'
+  | 'sale.registered' | 'payout.updated'
   | 'user.invited' | 'user.role_changed'
 
-export type EntityType = 'task' | 'client' | 'invoice' | 'affiliate' | 'user'
+export type EntityType = 'task' | 'client' | 'invoice' | 'affiliate' | 'user' | 'sale' | 'payout'
 
 export async function logActivityClient(params: {
   action: ActivityAction

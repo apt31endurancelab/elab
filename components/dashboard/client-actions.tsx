@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { createClient } from "@/lib/supabase/client"
+import { logActivityClient } from "@/lib/activity-log-client"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import {
@@ -33,6 +34,8 @@ export function ClientActions({ client, isDemo = false }: { client: Client; isDe
     const { error } = await supabase.from("clients").delete().eq("id", client.id)
     if (error) {
       console.error("Error deleting client:", error)
+    } else {
+      logActivityClient({ action: "client.deleted", entityType: "client", entityId: client.id, entityName: client.name })
     }
     setLoading(false)
     router.refresh()
