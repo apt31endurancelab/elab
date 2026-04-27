@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react"
 import { createClient } from "@/lib/supabase/client"
+import { logActivityClient } from "@/lib/activity-log-client"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -274,6 +275,9 @@ export function CreateInvoiceForm({
       title: `${typeLabel} ${invoiceNumber} creada`,
       description: `${typeLabel} por ${formatCLP(total)}`,
     })
+
+    const selectedClient = clients.find(c => c.id === clientId)
+    logActivityClient({ action: "invoice.created", entityType: "invoice", entityId: invoice.id, entityName: `${typeLabel} ${invoiceNumber}`, metadata: { client_name: selectedClient?.name || null, total } })
 
     setLoading(false)
     router.push("/dashboard/invoices")

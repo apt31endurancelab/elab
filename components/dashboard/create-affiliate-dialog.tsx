@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { logActivityClient } from "@/lib/activity-log-client"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -82,6 +83,7 @@ export function CreateAffiliateDialog({ isDemo = false }: { isDemo?: boolean }) 
     })
 
     if (!error) {
+      logActivityClient({ action: "affiliate.created", entityType: "affiliate", entityName: name, metadata: { commission_rate: parseInt(commissionRate), discount_code: code.toUpperCase() } })
       setOpen(false)
       setName("")
       setEmail("")

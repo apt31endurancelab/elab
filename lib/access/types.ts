@@ -1,5 +1,6 @@
 export const SECTION_KEYS = [
   'dashboard',
+  'timeline',
   'shopify',
   'tasks',
   'clients',
@@ -17,6 +18,7 @@ export type Role = 'superadmin' | 'admin' | 'viewer' | 'affiliate'
 
 export const SECTION_LABELS: Record<SectionKey, string> = {
   'dashboard': 'Dashboard',
+  'timeline': 'Timeline',
   'shopify': 'Shopify Analytics',
   'tasks': 'Tareas',
   'clients': 'CRM Clientes',

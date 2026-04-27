@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getDefaultPermissions } from '@/lib/access/helpers'
+import { logActivity } from '@/lib/activity-log'
 import type { Role, SectionKey } from '@/lib/access/types'
 
 async function verifySuperadmin() {
@@ -101,6 +102,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: permError.message }, { status: 500 })
     }
   }
+
+  await logActivity({ action: "user.invited", entityType: "user", entityName: email, metadata: { role } })
 
   return NextResponse.json({ success: true, userId })
 }

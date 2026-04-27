@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { createClient } from "@/lib/supabase/client"
+import { logActivityClient } from "@/lib/activity-log-client"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import {
@@ -112,6 +113,12 @@ export function InvoiceActions({
           title: `${typeLabel} ${invoice.invoice_number} ${activityInfo.verb}`,
         })
       }
+    }
+
+    const actionMap: Record<string, "invoice.sent" | "invoice.paid"> = { sent: "invoice.sent", paid: "invoice.paid" }
+    const logAction = actionMap[status]
+    if (logAction) {
+      logActivityClient({ action: logAction, entityType: "invoice", entityId: invoice.id, entityName: `${typeLabel} ${invoice.invoice_number}`, metadata: { client_name: invoice.client_name || null } })
     }
 
     setLoading(false)

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { Role, SectionKey } from '@/lib/access/types'
+import { logActivity } from '@/lib/activity-log'
 
 async function verifySuperadmin() {
   const supabase = await createClient()
@@ -70,6 +71,12 @@ export async function PATCH(
         return NextResponse.json({ error: permError.message }, { status: 500 })
       }
     }
+  }
+
+  // Get user email for logging
+  const { data: targetProfile } = await admin.from('profiles').select('email').eq('id', id).single()
+  if (role) {
+    await logActivity({ action: "user.role_changed", entityType: "user", entityName: targetProfile?.email || id, metadata: { new_role: role } })
   }
 
   return NextResponse.json({ success: true })

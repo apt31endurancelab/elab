@@ -30,12 +30,14 @@ import {
   FilePlus,
   CalendarDays,
   Shield,
+  Activity,
 } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { hasAccess } from "@/lib/access/helpers"
+import { logActivityClient } from "@/lib/activity-log-client"
 import type { Role, UserPermission, SectionKey } from "@/lib/access/types"
 
 interface DemoUser {
@@ -49,6 +51,7 @@ const navItems = [
     title: "Panel Principal",
     items: [
       { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard, sectionKey: "dashboard" as SectionKey },
+      { title: "Timeline", href: "/dashboard/timeline", icon: Activity, sectionKey: "timeline" as SectionKey },
       { title: "Shopify Analytics", href: "/dashboard/shopify", icon: ShoppingBag, sectionKey: "shopify" as SectionKey },
     ],
   },
@@ -105,6 +108,7 @@ export function DashboardSidebar({
 
   const handleSignOut = async () => {
     if (!isDemo) {
+      await logActivityClient({ action: "user.logout", entityType: "user", entityName: user.email })
       const supabase = createClient()
       await supabase.auth.signOut()
     }

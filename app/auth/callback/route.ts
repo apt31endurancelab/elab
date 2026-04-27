@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { logActivity } from '@/lib/activity-log'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(request: NextRequest) {
@@ -14,6 +15,7 @@ export async function GET(request: NextRequest) {
   if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     if (!error) {
+      await logActivity({ action: "user.login", entityType: "user" })
       return NextResponse.redirect(`${origin}${next}`)
     }
   }
@@ -25,6 +27,7 @@ export async function GET(request: NextRequest) {
       type: type as 'email' | 'magiclink',
     })
     if (!error) {
+      await logActivity({ action: "user.login", entityType: "user" })
       return NextResponse.redirect(`${origin}${next}`)
     }
   }

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { logActivityClient } from "@/lib/activity-log-client"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -115,6 +116,8 @@ export function CreateClientDialog({ isDemo = false }: { isDemo?: boolean }) {
       setLoading(false)
       return
     }
+
+    logActivityClient({ action: "client.created", entityType: "client", entityName: name, metadata: { contact_person: contactPerson || null } })
 
     setOpen(false)
     resetForm()

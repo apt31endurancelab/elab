@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { createClient } from "@/lib/supabase/client"
+import { logActivityClient } from "@/lib/activity-log-client"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import {
@@ -89,6 +90,8 @@ export function CreateTaskDialog({ isDemo = false }: { isDemo?: boolean }) {
       setLoading(false)
       return
     }
+
+    logActivityClient({ action: "task.created", entityType: "task", entityName: title, metadata: { priority } })
 
     setOpen(false)
     resetForm()
