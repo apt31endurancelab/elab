@@ -13,6 +13,7 @@ import {
 import { Building2 } from "lucide-react"
 import { ClientActions } from "./client-actions"
 import { type Client } from "./create-client-dialog"
+import { bareTaxId } from "@/lib/tax-id"
 
 type ClientWithStats = Client & {
   invoiceCount: number
@@ -41,7 +42,7 @@ export function ClientListTable({ clients, isDemo }: { clients: ClientWithStats[
       <TableHeader>
         <TableRow>
           <TableHead>Nombre / Razón Social</TableHead>
-          <TableHead>RUT</TableHead>
+          <TableHead>Documento Fiscal</TableHead>
           <TableHead>Contacto</TableHead>
           <TableHead>Email</TableHead>
           <TableHead>Facturas</TableHead>
@@ -59,7 +60,11 @@ export function ClientListTable({ clients, isDemo }: { clients: ClientWithStats[
               </Link>
             </TableCell>
             <TableCell className="text-muted-foreground font-mono text-sm">
-              {client.rut || "—"}
+              {client.tax_id_type && client.tax_id ? (
+                <span><span className="text-[10px] uppercase tracking-wide text-muted-foreground/70">{client.tax_id_type}</span> {client.tax_id}</span>
+              ) : (
+                bareTaxId(client) || "—"
+              )}
             </TableCell>
             <TableCell>{client.contact_person || "—"}</TableCell>
             <TableCell className="text-muted-foreground">{client.email || "—"}</TableCell>

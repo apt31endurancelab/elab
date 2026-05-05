@@ -21,8 +21,12 @@ import {
   Send,
   Clock,
   XCircle,
+  FileCheck,
+  Mail,
 } from "lucide-react"
 import { type InvoiceWithClient } from "./invoice-detail-dialog"
+import { invoiceTypeLabel } from "@/lib/invoice-status"
+import { SendInvoiceDialog } from "./send-invoice-dialog"
 
 const INVOICES_STORAGE_KEY = "endurancelab_invoices"
 
@@ -53,6 +57,7 @@ export function InvoiceActions({
 }) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
+  const [sendOpen, setSendOpen] = useState(false)
 
   const statusActivityMap: Record<string, { type: string; verb: string }> = {
     sent: { type: "invoice_sent", verb: "enviada" },
@@ -63,7 +68,7 @@ export function InvoiceActions({
 
   const updateStatus = async (status: string) => {
     const activityInfo = statusActivityMap[status]
-    const typeLabel = invoice.type === "cotizacion" ? "Cotización" : "Factura"
+    const typeLabel = invoiceTypeLabel(invoice.type)
 
     if (isDemo) {
       const invoices = loadInvoicesFromStorage()
@@ -139,13 +144,95 @@ export function InvoiceActions({
     setLoading(true)
     const supabase = createClient()
     await supabase.from("invoices").delete().eq("id", invoice.id)
-    const label = invoice.type === "cotizacion" ? "Cotización" : "Factura"
+    const label = invoiceTypeLabel(invoice.type)
     logActivityClient({ action: "invoice.deleted", entityType: "invoice", entityId: invoice.id, entityName: `${label} ${invoice.invoice_number}` })
     setLoading(false)
     router.refresh()
   }
 
+  const handleConvertToFactura = async () => {
+    if (invoice.type === "factura") return
+    const fromLabel = invoiceTypeLabel(invoice.type)
+    if (!confirm(`Convertir esta ${fromLabel} en Factura definitiva?`)) return
+
+    const facturaNumber = `FAC-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 999) + 1).padStart(3, "0")}`
+
+    if (isDemo) {
+      const invoices = loadInvoicesFromStorage()
+      const newFactura: InvoiceWithClient = {
+        ...invoice,
+        id: `inv-${Date.now()}`,
+        invoice_number: facturaNumber,
+        type: "factura",
+        status: "draft",
+        created_at: new Date().toISOString(),
+      }
+      saveInvoicesToStorage([newFactura, ...invoices])
+      window.dispatchEvent(new Event("invoices-updated"))
+      router.refresh()
+      return
+    }
+
+    setLoading(true)
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { setLoading(false); return }
+
+    const { data: created, error } = await supabase
+      .from("invoices")
+      .insert({
+        user_id: user.id,
+        client_id: invoice.client_id,
+        invoice_number: facturaNumber,
+        type: "factura",
+        status: "draft",
+        issue_date: new Date().toISOString().split("T")[0],
+        validity_days: invoice.validity_days,
+        subtotal: invoice.subtotal,
+        tax_rate: invoice.tax_rate,
+        tax_amount: invoice.tax_amount,
+        total: invoice.total,
+        is_recurring: invoice.is_recurring,
+        recurring_frequency: invoice.recurring_frequency,
+        notes: invoice.notes,
+        converted_from: invoice.id,
+      })
+      .select("id")
+      .single()
+
+    if (!error && created) {
+      const items = invoice.items.map((it) => ({
+        invoice_id: created.id,
+        description: it.description,
+        quantity: it.quantity,
+        unit_price: it.unit_price,
+        amount: it.amount,
+      }))
+      await supabase.from("invoice_items").insert(items)
+
+      logActivityClient({
+        action: "invoice.created",
+        entityType: "invoice",
+        entityId: created.id,
+        entityName: `Factura ${facturaNumber}`,
+        metadata: { converted_from: invoice.id, client_name: invoice.client_name || null, total: invoice.total },
+      })
+
+      await supabase.from("client_activities").insert({
+        user_id: user.id,
+        client_id: invoice.client_id,
+        invoice_id: created.id,
+        type: "invoice_created",
+        title: `Factura ${facturaNumber} creada (desde ${fromLabel} ${invoice.invoice_number})`,
+      })
+    }
+
+    setLoading(false)
+    router.refresh()
+  }
+
   return (
+    <>
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="icon" className="h-8 w-8" disabled={loading}>
@@ -165,7 +252,19 @@ export function InvoiceActions({
             Generar PDF
           </DropdownMenuItem>
         )}
+        {!isDemo && (
+          <DropdownMenuItem onClick={() => setSendOpen(true)}>
+            <Mail className="h-4 w-4 mr-2" />
+            Enviar al cliente
+          </DropdownMenuItem>
+        )}
         <DropdownMenuSeparator />
+        {invoice.type !== "factura" && (
+          <DropdownMenuItem onClick={handleConvertToFactura}>
+            <FileCheck className="h-4 w-4 mr-2" />
+            Convertir a Factura
+          </DropdownMenuItem>
+        )}
         {invoice.status !== "draft" && (
           <DropdownMenuItem onClick={() => updateStatus("draft")}>
             <Clock className="h-4 w-4 mr-2" />
@@ -197,5 +296,12 @@ export function InvoiceActions({
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
+
+    <SendInvoiceDialog
+      invoice={invoice}
+      open={sendOpen}
+      onOpenChange={setSendOpen}
+    />
+    </>
   )
 }

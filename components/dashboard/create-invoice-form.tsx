@@ -26,6 +26,8 @@ type ClientOption = {
   id: string
   name: string
   rut: string | null
+  tax_id?: string | null
+  tax_id_type?: string | null
   address: string | null
   phone: string | null
   contact_person: string | null
@@ -69,7 +71,7 @@ export function CreateInvoiceForm({
 
   // Invoice header
   const [clientId, setClientId] = useState("")
-  const [type, setType] = useState<"cotizacion" | "factura">("cotizacion")
+  const [type, setType] = useState<"cotizacion" | "proforma" | "factura">("cotizacion")
   const [issueDate, setIssueDate] = useState(new Date().toISOString().split("T")[0])
   const [validityDays, setValidityDays] = useState("30")
   const [taxRate, setTaxRate] = useState("19")
@@ -126,11 +128,13 @@ export function CreateInvoiceForm({
   }
 
   const generateInvoiceNumber = () => {
-    const prefix = type === "cotizacion" ? "COT" : "FAC"
+    const prefix = type === "cotizacion" ? "COT" : type === "proforma" ? "PRO" : "FAC"
     const year = new Date().getFullYear()
     const seq = String(Math.floor(Math.random() * 999) + 1).padStart(3, "0")
     return `${prefix}-${year}-${seq}`
   }
+
+  const typeLabel = type === "cotizacion" ? "Cotización" : type === "proforma" ? "Proforma" : "Factura"
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -141,11 +145,16 @@ export function CreateInvoiceForm({
 
     if (isDemo) {
       const client = clients.find(c => c.id === clientId)
+      const formattedClientTaxId = client?.tax_id
+        ? `${client.tax_id_type || "ID"}: ${client.tax_id}`
+        : client?.rut
+          ? `RUT: ${client.rut}`
+          : undefined
       const newInvoice = {
         id: `inv-${Date.now()}`,
         client_id: clientId,
         client_name: client?.name || "",
-        client_rut: client?.rut,
+        client_rut: formattedClientTaxId,
         client_address: client?.address,
         client_phone: client?.phone,
         client_contact: client?.contact_person,
@@ -179,7 +188,6 @@ export function CreateInvoiceForm({
 
       // Log activity in demo mode
       try {
-        const typeLabel = type === "cotizacion" ? "Cotización" : "Factura"
         const actStored = localStorage.getItem("endurancelab_activities")
         const acts = actStored ? JSON.parse(actStored) : []
         acts.unshift({
@@ -266,7 +274,6 @@ export function CreateInvoiceForm({
     }
 
     // Log activity
-    const typeLabel = type === "cotizacion" ? "Cotización" : "Factura"
     await supabase.from("client_activities").insert({
       user_id: user.id,
       client_id: clientId,
@@ -311,7 +318,11 @@ export function CreateInvoiceForm({
             {selectedClient && (
               <div className="bg-muted rounded-lg p-3 text-sm space-y-1">
                 <p className="font-medium">{selectedClient.name}</p>
-                {selectedClient.rut && <p className="text-muted-foreground">RUT: {selectedClient.rut}</p>}
+                {(selectedClient.tax_id || selectedClient.rut) && (
+                  <p className="text-muted-foreground">
+                    {selectedClient.tax_id_type || (selectedClient.rut ? "RUT" : "ID")}: {selectedClient.tax_id || selectedClient.rut}
+                  </p>
+                )}
                 {selectedClient.contact_person && <p className="text-muted-foreground">Contacto: {selectedClient.contact_person}</p>}
                 {selectedClient.email && <p className="text-muted-foreground">Email: {selectedClient.email}</p>}
                 {selectedClient.phone && <p className="text-muted-foreground">Tel: {selectedClient.phone}</p>}
@@ -329,12 +340,13 @@ export function CreateInvoiceForm({
             <div className="grid grid-cols-2 gap-4">
               <Field>
                 <FieldLabel>Tipo</FieldLabel>
-                <Select value={type} onValueChange={(v: "cotizacion" | "factura") => setType(v)}>
+                <Select value={type} onValueChange={(v: "cotizacion" | "proforma" | "factura") => setType(v)}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="cotizacion">Cotización</SelectItem>
+                    <SelectItem value="proforma">Proforma / Presupuesto</SelectItem>
                     <SelectItem value="factura">Factura</SelectItem>
                   </SelectContent>
                 </Select>
@@ -539,7 +551,7 @@ export function CreateInvoiceForm({
         </Button>
         <Button type="submit" disabled={loading || !clientId || lines.every(l => !l.description)}>
           {loading ? <Spinner className="mr-2 h-4 w-4" /> : <Save className="h-4 w-4 mr-2" />}
-          Guardar {type === "cotizacion" ? "Cotización" : "Factura"}
+          Guardar {typeLabel}
         </Button>
       </div>
     </form>

@@ -26,8 +26,13 @@ import {
   FileDown,
   Building2,
   CheckSquare,
+  Download,
+  Plus,
 } from "lucide-react"
 import { openInvoicePdf } from "./invoice-pdf"
+import { invoiceStatusBadgeClass, invoiceStatusLabel, invoiceTypeLabel } from "@/lib/invoice-status"
+import { buildIcs, downloadIcs } from "@/lib/calendar-export"
+import { QuickCreateTaskDialog } from "./quick-create-task-dialog"
 
 export type CalendarInvoice = {
   id: string
@@ -39,7 +44,7 @@ export type CalendarInvoice = {
   client_contact?: string
   client_email?: string
   invoice_number: string
-  type: "cotizacion" | "factura"
+  type: "cotizacion" | "proforma" | "factura"
   status: string
   issue_date: string
   validity_days: number
@@ -80,14 +85,6 @@ const eventConfig: Record<string, { color: string; bg: string; icon: typeof File
   recurring_next: { color: "text-purple-600 dark:text-purple-400", bg: "bg-purple-500/15 border-purple-500/30", icon: RefreshCw, label: "Recurrente" },
   task: { color: "text-cyan-600 dark:text-cyan-400", bg: "bg-cyan-500/15 border-cyan-500/30", icon: CheckSquare, label: "Tarea" },
   task_overdue: { color: "text-red-600 dark:text-red-400", bg: "bg-red-500/15 border-red-500/30", icon: CheckSquare, label: "Tarea vencida" },
-}
-
-const statusLabels: Record<string, string> = {
-  draft: "Borrador",
-  sent: "Enviada",
-  paid: "Pagada",
-  overdue: "Vencida",
-  cancelled: "Cancelada",
 }
 
 function formatCLP(amount: number) {
@@ -171,12 +168,14 @@ function getFirstDayOfMonth(year: number, month: number): number {
 const MONTH_NAMES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
 const DAY_NAMES = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
 
-export function InvoiceCalendar({ invoices, tasks = [] }: { invoices: CalendarInvoice[]; tasks?: CalendarTask[] }) {
+export function InvoiceCalendar({ invoices, tasks = [], isDemo = false }: { invoices: CalendarInvoice[]; tasks?: CalendarTask[]; isDemo?: boolean }) {
   const today = new Date()
   const [currentYear, setCurrentYear] = useState(today.getFullYear())
   const [currentMonth, setCurrentMonth] = useState(today.getMonth())
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [detailOpen, setDetailOpen] = useState(false)
+  const [quickCreateDate, setQuickCreateDate] = useState<string | null>(null)
+  const [quickCreateOpen, setQuickCreateOpen] = useState(false)
 
   const events = useMemo(() => generateEvents(invoices, tasks), [invoices, tasks])
 
@@ -205,7 +204,28 @@ export function InvoiceCalendar({ invoices, tasks = [] }: { invoices: CalendarIn
   const goToToday = () => { setCurrentYear(today.getFullYear()); setCurrentMonth(today.getMonth()) }
 
   const handleDateClick = (dateStr: string) => {
-    if (eventsByDate[dateStr]?.length) { setSelectedDate(dateStr); setDetailOpen(true) }
+    if (eventsByDate[dateStr]?.length) {
+      setSelectedDate(dateStr)
+      setDetailOpen(true)
+    } else {
+      setQuickCreateDate(dateStr)
+      setQuickCreateOpen(true)
+    }
+  }
+
+  const exportToIcs = () => {
+    const icsEvents = events.map((e) => {
+      const id = e.invoice ? e.invoice.id : e.task ? e.task.id : `${e.date}-${e.type}-${Math.random()}`
+      const summary = e.invoice
+        ? `${e.label} (${e.invoice.client_name})`
+        : e.label
+      const description = e.invoice
+        ? `${invoiceTypeLabel(e.invoice.type)} ${e.invoice.invoice_number} — ${e.invoice.client_name} — ${formatCLP(e.invoice.total)}`
+        : e.task?.description || undefined
+      return { uid: `${id}-${e.type}@endurancelab`, date: e.date, summary, description }
+    })
+    const ics = buildIcs(icsEvents, "Endurance Lab — Calendario")
+    downloadIcs(ics, `endurance-lab-calendar-${new Date().toISOString().split("T")[0]}.ics`)
   }
 
   const todayStr = today.toISOString().split("T")[0]
@@ -275,8 +295,9 @@ export function InvoiceCalendar({ invoices, tasks = [] }: { invoices: CalendarIn
         })}
       </div>
 
-      {/* Calendar */}
-      <Card>
+      {/* Calendar + Upcoming side by side */}
+      <div className="grid gap-4 lg:grid-cols-3">
+      <Card className="lg:col-span-2">
         <CardHeader className="flex flex-row items-center justify-between pb-2">
           <div className="flex items-center gap-3">
             <Button variant="outline" size="icon" onClick={prevMonth}>
@@ -289,10 +310,16 @@ export function InvoiceCalendar({ invoices, tasks = [] }: { invoices: CalendarIn
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
-          <Button variant="outline" size="sm" onClick={goToToday}>
-            <CalendarDays className="h-4 w-4 mr-1" />
-            Hoy
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={exportToIcs}>
+              <Download className="h-4 w-4 mr-1" />
+              Exportar .ics
+            </Button>
+            <Button variant="outline" size="sm" onClick={goToToday}>
+              <CalendarDays className="h-4 w-4 mr-1" />
+              Hoy
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           {/* Legend */}
@@ -365,22 +392,33 @@ export function InvoiceCalendar({ invoices, tasks = [] }: { invoices: CalendarIn
 
       {/* Upcoming events list */}
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
           <CardTitle className="text-base font-medium">Próximos Eventos</CardTitle>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setQuickCreateDate(todayStr)
+              setQuickCreateOpen(true)
+            }}
+          >
+            <Plus className="h-4 w-4 mr-1" />
+            Nueva tarea
+          </Button>
         </CardHeader>
         <CardContent>
           {(() => {
             const upcoming = events
               .filter(e => new Date(e.date) >= new Date(todayStr))
               .sort((a, b) => a.date.localeCompare(b.date))
-              .slice(0, 10)
+              .slice(0, 25)
 
             if (upcoming.length === 0) {
               return <p className="text-sm text-muted-foreground text-center py-4">No hay eventos próximos</p>
             }
 
             return (
-              <div className="space-y-2">
+              <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1">
                 {upcoming.map((event, i) => {
                   const config = eventConfig[event.type]
                   const Icon = config.icon
@@ -433,6 +471,7 @@ export function InvoiceCalendar({ invoices, tasks = [] }: { invoices: CalendarIn
           })()}
         </CardContent>
       </Card>
+      </div>
 
       {/* Day detail dialog */}
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
@@ -506,8 +545,8 @@ export function InvoiceCalendar({ invoices, tasks = [] }: { invoices: CalendarIn
                   <div className="space-y-1 text-sm">
                     <div className="flex justify-between">
                       <span className="font-mono font-medium">{event.invoice.invoice_number}</span>
-                      <Badge variant={event.invoice.status === "paid" ? "default" : event.invoice.status === "overdue" ? "destructive" : "secondary"}>
-                        {statusLabels[event.invoice.status] || event.invoice.status}
+                      <Badge variant="outline" className={invoiceStatusBadgeClass(event.invoice.status)}>
+                        {invoiceStatusLabel(event.invoice.status)}
                       </Badge>
                     </div>
                     <Link
@@ -520,7 +559,7 @@ export function InvoiceCalendar({ invoices, tasks = [] }: { invoices: CalendarIn
                     </Link>
                     <div className="flex justify-between items-center">
                       <span className="text-muted-foreground">
-                        {event.invoice.type === "cotizacion" ? "Cotización" : "Factura"}
+                        {invoiceTypeLabel(event.invoice.type)}
                       </span>
                       <span className="font-bold">{formatCLP(event.invoice.total)}</span>
                     </div>
@@ -540,6 +579,13 @@ export function InvoiceCalendar({ invoices, tasks = [] }: { invoices: CalendarIn
           </div>
         </DialogContent>
       </Dialog>
+
+      <QuickCreateTaskDialog
+        open={quickCreateOpen}
+        onOpenChange={setQuickCreateOpen}
+        date={quickCreateDate}
+        isDemo={isDemo}
+      />
     </div>
   )
 }

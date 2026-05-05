@@ -7,7 +7,11 @@ function formatCLP(amount: number) {
 }
 
 function generatePdfHtml(invoice: InvoiceWithClient): string {
-  const typeLabel = invoice.type === "cotizacion" ? "COTIZACIÓN" : "FACTURA"
+  const typeLabel =
+    invoice.type === "cotizacion" ? "COTIZACIÓN"
+    : invoice.type === "proforma" ? "PROFORMA"
+    : "FACTURA"
+  const isQuote = invoice.type === "cotizacion" || invoice.type === "proforma"
   const dateFormatted = new Date(invoice.issue_date).toLocaleDateString("es-CL", {
     day: "2-digit",
     month: "2-digit",
@@ -30,7 +34,7 @@ function generatePdfHtml(invoice: InvoiceWithClient): string {
   <title>${typeLabel} ${invoice.invoice_number}</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    @page { size: A4; margin: 15mm 20mm; }
+    @page { size: A4; margin: 15mm 18mm; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
       color: #111;
@@ -38,11 +42,7 @@ function generatePdfHtml(invoice: InvoiceWithClient): string {
       line-height: 1.5;
       background: white;
     }
-    .page {
-      max-width: 210mm;
-      margin: 0 auto;
-      padding: 40px;
-    }
+    .page { max-width: 210mm; margin: 0 auto; padding: 40px; }
     @media print {
       .page { padding: 0; }
       .no-print { display: none !important; }
@@ -54,45 +54,48 @@ function generatePdfHtml(invoice: InvoiceWithClient): string {
     <button onclick="window.print()" style="background: #111; color: white; border: none; padding: 10px 28px; border-radius: 6px; font-size: 14px; cursor: pointer; font-weight: 500;">
       Descargar PDF / Imprimir
     </button>
+    <div style="font-size: 11px; color: #666; margin-top: 6px;">
+      Tip: en el diálogo de impresión, desactiva "Encabezados y pies de página" para un PDF limpio.
+    </div>
   </div>
 
   <div class="page">
-    <!-- Header -->
-    <div style="text-align: center; margin-bottom: 48px;">
-      <h1 style="font-size: 26px; font-weight: 700; letter-spacing: 3px; border-bottom: 2.5px solid #111; display: inline-block; padding: 6px 32px;">
-        ${typeLabel}
-      </h1>
-    </div>
-
-    <!-- Client + Company -->
-    <div style="display: flex; justify-content: space-between; margin-bottom: 48px;">
-      <div style="line-height: 2; font-size: 13px;">
-        <p><strong>Cliente:</strong> ${invoice.client_name}</p>
-        ${invoice.client_rut ? `<p><strong>Rut:</strong> ${invoice.client_rut}</p>` : ""}
-        ${invoice.client_address ? `<p><strong>Dirección:</strong> ${invoice.client_address}</p>` : ""}
-        ${invoice.client_phone ? `<p><strong>Teléfono:</strong> ${invoice.client_phone}</p>` : ""}
-        ${invoice.client_contact ? `<p><strong>Contacto:</strong> ${invoice.client_contact}</p>` : ""}
-        ${invoice.client_email ? `<p><strong>E-mail:</strong> ${invoice.client_email}</p>` : ""}
-        <p><strong>Fecha:</strong> ${dateFormatted}</p>
-        <p><strong>Validez de la cotización:</strong> ${invoice.validity_days} días</p>
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 36px;">
+      <div>
+        <div style="font-size: 28px; font-weight: 700; letter-spacing: 1px;">e.lab</div>
+        <div style="font-size: 11px; color: #555; margin-top: 4px;">Endurance Lab — Santiago, Chile</div>
       </div>
-      <div style="text-align: right; line-height: 2; font-size: 13px;">
-        <p style="font-weight: 700; font-size: 15px;">Endurance Lab</p>
-        <p>Paderewski 1586, Vitacura, 7630292, Santiago -</p>
-        <p>Chile</p>
-        <p>Carlos Lastra</p>
-        <p>Contact@endurancelab.cc</p>
+      <div style="text-align: right;">
+        <div style="font-size: 22px; font-weight: 700; letter-spacing: 2px;">${typeLabel}</div>
+        <div style="font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; margin-top: 4px;">${invoice.invoice_number}</div>
+        <div style="font-size: 12px; color: #555; margin-top: 2px;">${dateFormatted}</div>
       </div>
     </div>
 
-    <!-- Items Table -->
-    <table style="width: 100%; border-collapse: collapse; margin-bottom: 32px;">
+    <div style="display: flex; justify-content: space-between; gap: 32px; margin-bottom: 36px;">
+      <div style="flex: 1; line-height: 1.7; font-size: 13px;">
+        <div style="font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">Cliente</div>
+        <p style="font-weight: 600;">${invoice.client_name}</p>
+        ${invoice.client_rut ? `<p>${invoice.client_rut}</p>` : ""}
+        ${invoice.client_address ? `<p>${invoice.client_address}</p>` : ""}
+        ${invoice.client_contact ? `<p>${invoice.client_contact}</p>` : ""}
+        ${invoice.client_phone ? `<p>${invoice.client_phone}</p>` : ""}
+        ${invoice.client_email ? `<p>${invoice.client_email}</p>` : ""}
+      </div>
+      ${isQuote ? `
+      <div style="text-align: right; line-height: 1.7; font-size: 13px;">
+        <div style="font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">Validez</div>
+        <p>${invoice.validity_days} días</p>
+      </div>` : ""}
+    </div>
+
+    <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
       <thead>
-        <tr style="border-bottom: 2.5px solid #111;">
-          <th style="text-align: left; padding: 10px 8px; font-weight: 700; font-size: 13px;">Descripción</th>
-          <th style="text-align: right; padding: 10px 8px; font-weight: 700; font-size: 13px;">Cantidad</th>
-          <th style="text-align: right; padding: 10px 8px; font-weight: 700; font-size: 13px;">Precio</th>
-          <th style="text-align: right; padding: 10px 8px; font-weight: 700; font-size: 13px;">Importe</th>
+        <tr style="border-bottom: 2px solid #111;">
+          <th style="text-align: left; padding: 10px 8px; font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Descripción</th>
+          <th style="text-align: right; padding: 10px 8px; font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Cantidad</th>
+          <th style="text-align: right; padding: 10px 8px; font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Precio</th>
+          <th style="text-align: right; padding: 10px 8px; font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Importe</th>
         </tr>
       </thead>
       <tbody>
@@ -100,40 +103,31 @@ function generatePdfHtml(invoice: InvoiceWithClient): string {
       </tbody>
     </table>
 
-    <!-- Totals -->
-    <div style="display: flex; justify-content: flex-end; margin-bottom: 56px;">
-      <div style="width: 300px;">
-        <div style="display: flex; justify-content: space-between; padding: 8px 0; font-size: 13px;">
-          <span>Subtotal</span>
+    <div style="display: flex; justify-content: flex-end; margin-bottom: 48px;">
+      <div style="width: 280px;">
+        <div style="display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px;">
+          <span style="color: #555;">Subtotal</span>
           <span>${formatCLP(invoice.subtotal)}</span>
         </div>
-        <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1.5px solid #111; font-size: 13px;">
-          <span>Impuesto ${invoice.tax_rate}%</span>
-          <span style="margin-left: 16px;">${formatCLP(invoice.tax_amount)}</span>
+        <div style="display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; border-bottom: 1px solid #ddd;">
+          <span style="color: #555;">Impuesto ${invoice.tax_rate}%</span>
+          <span>${formatCLP(invoice.tax_amount)}</span>
         </div>
-        <div style="display: flex; justify-content: space-between; padding: 10px 0; font-weight: 700; font-size: 16px; border-bottom: 2.5px solid #111;">
+        <div style="display: flex; justify-content: space-between; padding: 10px 0; font-weight: 700; font-size: 16px;">
           <span>Total</span>
           <span>${formatCLP(invoice.total)}</span>
         </div>
       </div>
     </div>
 
-    <!-- Footer -->
-    <div style="margin-top: 56px; line-height: 1.9; font-size: 11px; color: #444;">
-      <p>Razón Social: CLB Visual Media SPA</p>
-      <p>Rut: 76582851-1</p>
-      <p>Giro: OTRAS ACTIVIDADES DE SERVICIOS DE APOYO A LAS EMPRESAS N.C.P..</p>
-      <p>Banco de Chile</p>
-      <p>Cta Corriente</p>
-      <p>Cuenta N° 00-801-10744-10</p>
-      <p>Carlos@apt31.com</p>
-      <p>Carlos Lastra Barros - +34613402739</p>
-      <p>Contact@endurancelab.cc</p>
-    </div>
+    ${invoice.notes ? `
+    <div style="margin-bottom: 32px; padding-top: 20px; border-top: 1px solid #eee; font-size: 12px; color: #444; line-height: 1.6;">
+      ${invoice.notes.replace(/\n/g, "<br>")}
+    </div>` : ""}
 
-    <!-- Logo -->
-    <div style="text-align: right; margin-top: 48px; font-size: 32px; font-weight: 700; color: #111;">
-      e.lab
+    <div style="margin-top: 48px; padding-top: 16px; border-top: 1px solid #eee; font-size: 10.5px; color: #666; line-height: 1.6;">
+      <strong>CLB Visual Media SPA</strong> · RUT 76582851-1 · Banco de Chile · Cta Cte 00-801-10744-10
+      &nbsp;·&nbsp; contact@endurancelab.cc · +34 613 402 739
     </div>
   </div>
 </body>

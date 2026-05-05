@@ -14,22 +14,7 @@ import { FileText, RefreshCw } from "lucide-react"
 import { InvoiceActions } from "./invoice-actions"
 import { InvoiceDetailDialog, type InvoiceWithClient } from "./invoice-detail-dialog"
 import { openInvoicePdf } from "./invoice-pdf"
-
-const statusLabels: Record<string, string> = {
-  draft: "Borrador",
-  sent: "Enviada",
-  paid: "Pagada",
-  overdue: "Vencida",
-  cancelled: "Cancelada",
-}
-
-const statusVariants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-  draft: "secondary",
-  sent: "default",
-  paid: "default",
-  overdue: "destructive",
-  cancelled: "outline",
-}
+import { invoiceStatusBadgeClass, invoiceStatusLabel, invoiceTypeLabel } from "@/lib/invoice-status"
 
 function formatCLP(amount: number) {
   return `$${amount.toLocaleString("es-CL")}`
@@ -87,7 +72,7 @@ export function InvoiceListClient({
               </TableCell>
               <TableCell>
                 <Badge variant="outline">
-                  {invoice.type === "cotizacion" ? "Cotización" : "Factura"}
+                  {invoiceTypeLabel(invoice.type)}
                 </Badge>
               </TableCell>
               <TableCell>{invoice.client_name}</TableCell>
@@ -98,8 +83,8 @@ export function InvoiceListClient({
                 {formatCLP(Number(invoice.total))}
               </TableCell>
               <TableCell>
-                <Badge variant={statusVariants[invoice.status] || "secondary"}>
-                  {statusLabels[invoice.status] || invoice.status}
+                <Badge variant="outline" className={invoiceStatusBadgeClass(invoice.status)}>
+                  {invoiceStatusLabel(invoice.status)}
                 </Badge>
               </TableCell>
               <TableCell>

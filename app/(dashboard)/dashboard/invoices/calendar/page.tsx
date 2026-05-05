@@ -2,14 +2,14 @@ import { createClient } from "@/lib/supabase/server"
 import { demoInvoices, demoTasks } from "@/lib/demo-data"
 import { InvoiceCalendar, type CalendarInvoice, type CalendarTask } from "@/components/dashboard/invoice-calendar"
 
-async function getCalendarData(): Promise<{ invoices: CalendarInvoice[]; tasks: CalendarTask[] }> {
+async function getCalendarData(): Promise<{ invoices: CalendarInvoice[]; tasks: CalendarTask[]; isDemo: boolean }> {
   try {
     const supabase = await createClient()
 
     // Fetch invoices
     const { data: invoices } = await supabase
       .from("invoices")
-      .select("*, clients(name, rut, address, phone, contact_person, email)")
+      .select("*, clients(name, rut, tax_id, tax_id_type, address, phone, contact_person, email)")
       .order("issue_date", { ascending: false })
 
     let invoiceResult: CalendarInvoice[] = []
@@ -21,12 +21,17 @@ async function getCalendarData(): Promise<{ invoices: CalendarInvoice[]; tasks: 
         .in("invoice_id", invoiceIds)
 
       invoiceResult = invoices.map(inv => {
-        const client = inv.clients as { name: string; rut: string; address: string; phone: string; contact_person: string; email: string } | null
+        const client = inv.clients as { name: string; rut: string | null; tax_id: string | null; tax_id_type: string | null; address: string; phone: string; contact_person: string; email: string } | null
+        const formattedTaxId = client?.tax_id
+          ? `${client.tax_id_type || "ID"}: ${client.tax_id}`
+          : client?.rut
+            ? `RUT: ${client.rut}`
+            : undefined
         return {
           id: inv.id,
           client_id: inv.client_id,
           client_name: client?.name || "Cliente desconocido",
-          client_rut: client?.rut || undefined,
+          client_rut: formattedTaxId,
           client_address: client?.address || undefined,
           client_phone: client?.phone || undefined,
           client_contact: client?.contact_person || undefined,
@@ -71,15 +76,15 @@ async function getCalendarData(): Promise<{ invoices: CalendarInvoice[]; tasks: 
       assigned_to: t.assigned_to,
     }))
 
-    return { invoices: invoiceResult, tasks: taskResult }
+    return { invoices: invoiceResult, tasks: taskResult, isDemo: false }
   } catch {
     const demoTasksWithDates = (demoTasks as CalendarTask[]).filter(t => t.due_date)
-    return { invoices: demoInvoices as unknown as CalendarInvoice[], tasks: demoTasksWithDates }
+    return { invoices: demoInvoices as unknown as CalendarInvoice[], tasks: demoTasksWithDates, isDemo: true }
   }
 }
 
 export default async function InvoiceCalendarPage() {
-  const { invoices, tasks } = await getCalendarData()
+  const { invoices, tasks, isDemo } = await getCalendarData()
 
   return (
     <div className="space-y-6">
@@ -90,7 +95,7 @@ export default async function InvoiceCalendarPage() {
         </p>
       </div>
 
-      <InvoiceCalendar invoices={invoices} tasks={tasks} />
+      <InvoiceCalendar invoices={invoices} tasks={tasks} isDemo={isDemo} />
     </div>
   )
 }

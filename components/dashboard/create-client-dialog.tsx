@@ -18,7 +18,15 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Field, FieldLabel } from "@/components/ui/field"
 import { Spinner } from "@/components/ui/spinner"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Plus } from "lucide-react"
+import { TAX_ID_TYPES } from "@/lib/tax-id"
 
 const CLIENTS_STORAGE_KEY = "endurancelab_clients"
 
@@ -40,6 +48,9 @@ export type Client = {
   id: string
   name: string
   rut: string | null
+  tax_id_type?: string | null
+  tax_id?: string | null
+  country_code?: string | null
   address: string | null
   phone: string | null
   contact_person: string | null
@@ -53,7 +64,8 @@ export function CreateClientDialog({ isDemo = false }: { isDemo?: boolean }) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [name, setName] = useState("")
-  const [rut, setRut] = useState("")
+  const [taxIdType, setTaxIdType] = useState<string>("NIF")
+  const [taxId, setTaxId] = useState("")
   const [address, setAddress] = useState("")
   const [phone, setPhone] = useState("")
   const [contactPerson, setContactPerson] = useState("")
@@ -62,7 +74,8 @@ export function CreateClientDialog({ isDemo = false }: { isDemo?: boolean }) {
 
   const resetForm = () => {
     setName("")
-    setRut("")
+    setTaxIdType("NIF")
+    setTaxId("")
     setAddress("")
     setPhone("")
     setContactPerson("")
@@ -78,7 +91,9 @@ export function CreateClientDialog({ isDemo = false }: { isDemo?: boolean }) {
       const newClient: Client = {
         id: `client-${Date.now()}`,
         name,
-        rut: rut || null,
+        rut: taxIdType === "RUT" ? (taxId || null) : null,
+        tax_id_type: taxId ? taxIdType : null,
+        tax_id: taxId || null,
         address: address || null,
         phone: phone || null,
         contact_person: contactPerson || null,
@@ -102,7 +117,9 @@ export function CreateClientDialog({ isDemo = false }: { isDemo?: boolean }) {
 
     const { error } = await supabase.from("clients").insert({
       name,
-      rut: rut || null,
+      rut: taxIdType === "RUT" ? (taxId || null) : null,
+      tax_id_type: taxId ? taxIdType : null,
+      tax_id: taxId || null,
       address: address || null,
       phone: phone || null,
       contact_person: contactPerson || null,
@@ -151,26 +168,39 @@ export function CreateClientDialog({ isDemo = false }: { isDemo?: boolean }) {
               required
             />
           </Field>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-[140px_1fr] gap-4">
             <Field>
-              <FieldLabel htmlFor="client-rut">RUT</FieldLabel>
-              <Input
-                id="client-rut"
-                value={rut}
-                onChange={(e) => setRut(e.target.value)}
-                placeholder="71.631.900-8"
-              />
+              <FieldLabel htmlFor="client-tax-type">Tipo</FieldLabel>
+              <Select value={taxIdType} onValueChange={setTaxIdType}>
+                <SelectTrigger id="client-tax-type">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {TAX_ID_TYPES.map((t) => (
+                    <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </Field>
             <Field>
-              <FieldLabel htmlFor="client-phone">Teléfono</FieldLabel>
+              <FieldLabel htmlFor="client-tax-id">Documento fiscal</FieldLabel>
               <Input
-                id="client-phone"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="+56 9 1234 5678"
+                id="client-tax-id"
+                value={taxId}
+                onChange={(e) => setTaxId(e.target.value)}
+                placeholder={taxIdType === "RUT" ? "71.631.900-8" : taxIdType === "NIF" ? "B12345678" : ""}
               />
             </Field>
           </div>
+          <Field>
+            <FieldLabel htmlFor="client-phone">Teléfono</FieldLabel>
+            <Input
+              id="client-phone"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="+34 600 123 456"
+            />
+          </Field>
           <Field>
             <FieldLabel htmlFor="client-address">Dirección</FieldLabel>
             <Input

@@ -24,11 +24,16 @@ import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { demoClients, demoInvoices, demoClientActivities } from "@/lib/demo-data"
 import { ClientTimeline } from "@/components/dashboard/client-timeline"
+import { invoiceStatusBadgeClass, invoiceStatusLabel, invoiceTypeLabel } from "@/lib/invoice-status"
+import { formatTaxId } from "@/lib/tax-id"
 
 type ClientDetail = {
   id: string
   name: string
   rut: string | null
+  tax_id_type?: string | null
+  tax_id?: string | null
+  country_code?: string | null
   address: string | null
   phone: string | null
   contact_person: string | null
@@ -61,22 +66,6 @@ type Activity = {
 
 function formatCLP(amount: number) {
   return `$${amount.toLocaleString("es-CL")}`
-}
-
-const statusLabels: Record<string, string> = {
-  draft: "Borrador",
-  sent: "Enviada",
-  paid: "Pagada",
-  overdue: "Vencida",
-  cancelled: "Cancelada",
-}
-
-const statusVariants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-  draft: "secondary",
-  sent: "default",
-  paid: "default",
-  overdue: "destructive",
-  cancelled: "outline",
 }
 
 async function getClientData(clientId: string): Promise<{
@@ -188,10 +177,10 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
             <CardTitle className="text-base">Información de Contacto</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {client.rut && (
+            {formatTaxId(client) && (
               <div className="flex items-center gap-3 text-sm">
                 <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
-                <span className="font-mono">{client.rut}</span>
+                <span className="font-mono">{formatTaxId(client)}</span>
               </div>
             )}
             {client.contact_person && (
@@ -300,8 +289,8 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
                       </TableCell>
                       <TableCell className="font-medium">{formatCLP(Number(inv.total))}</TableCell>
                       <TableCell>
-                        <Badge variant={statusVariants[inv.status] || "secondary"}>
-                          {statusLabels[inv.status] || inv.status}
+                        <Badge variant="outline" className={invoiceStatusBadgeClass(inv.status)}>
+                          {invoiceStatusLabel(inv.status)}
                         </Badge>
                       </TableCell>
                     </TableRow>

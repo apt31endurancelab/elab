@@ -23,7 +23,7 @@ export type InvoiceRow = {
   client_contact?: string
   client_email?: string
   invoice_number: string
-  type: "cotizacion" | "factura"
+  type: "cotizacion" | "proforma" | "factura"
   status: string
   issue_date: string
   validity_days: number
@@ -44,7 +44,7 @@ async function getInvoices(): Promise<{ invoices: InvoiceRow[]; isDemo: boolean 
 
     const { data: invoices } = await supabase
       .from("invoices")
-      .select("*, clients(name, rut, address, phone, contact_person, email)")
+      .select("*, clients(name, rut, tax_id, tax_id_type, address, phone, contact_person, email)")
       .order("created_at", { ascending: false })
 
     if (!invoices) return { invoices: demoInvoices as InvoiceRow[], isDemo: true }
@@ -56,11 +56,16 @@ async function getInvoices(): Promise<{ invoices: InvoiceRow[]; isDemo: boolean 
       .in("invoice_id", invoiceIds)
 
     const result: InvoiceRow[] = invoices.map(inv => {
-      const client = inv.clients as { name: string; rut: string; address: string; phone: string; contact_person: string; email: string } | null
+      const client = inv.clients as { name: string; rut: string | null; tax_id: string | null; tax_id_type: string | null; address: string; phone: string; contact_person: string; email: string } | null
+      const formattedTaxId = client?.tax_id
+        ? `${client.tax_id_type || "ID"}: ${client.tax_id}`
+        : client?.rut
+          ? `RUT: ${client.rut}`
+          : undefined
       return {
         ...inv,
         client_name: client?.name || "Cliente desconocido",
-        client_rut: client?.rut || undefined,
+        client_rut: formattedTaxId,
         client_address: client?.address || undefined,
         client_phone: client?.phone || undefined,
         client_contact: client?.contact_person || undefined,

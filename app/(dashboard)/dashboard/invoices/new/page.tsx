@@ -8,7 +8,7 @@ async function getData() {
 
     const { data: clients } = await supabase
       .from("clients")
-      .select("id, name, rut, address, phone, contact_person, email")
+      .select("id, name, rut, tax_id, tax_id_type, address, phone, contact_person, email")
       .order("name")
 
     const { data: products } = await supabase
@@ -27,6 +27,8 @@ async function getData() {
         id: c.id,
         name: c.name,
         rut: c.rut,
+        tax_id: null,
+        tax_id_type: null,
         address: c.address,
         phone: c.phone,
         contact_person: c.contact_person,

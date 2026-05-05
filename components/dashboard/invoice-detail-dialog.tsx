@@ -12,6 +12,7 @@ import { Separator } from "@/components/ui/separator"
 import { FileDown, Building2 } from "lucide-react"
 import Link from "next/link"
 import { openInvoicePdf } from "./invoice-pdf"
+import { invoiceStatusBadgeClass, invoiceStatusLabel, invoiceTypeLabel } from "@/lib/invoice-status"
 
 export type InvoiceItem = {
   id?: string
@@ -31,7 +32,7 @@ export type InvoiceWithClient = {
   client_contact?: string
   client_email?: string
   invoice_number: string
-  type: "cotizacion" | "factura"
+  type: "cotizacion" | "proforma" | "factura"
   status: string
   issue_date: string
   validity_days: number
@@ -44,22 +45,6 @@ export type InvoiceWithClient = {
   notes: string | null
   created_at: string
   items: InvoiceItem[]
-}
-
-const statusLabels: Record<string, string> = {
-  draft: "Borrador",
-  sent: "Enviada",
-  paid: "Pagada",
-  overdue: "Vencida",
-  cancelled: "Cancelada",
-}
-
-const statusColors: Record<string, string> = {
-  draft: "secondary",
-  sent: "default",
-  paid: "default",
-  overdue: "destructive",
-  cancelled: "secondary",
 }
 
 function formatCLP(amount: number) {
@@ -83,9 +68,9 @@ export function InvoiceDetailDialog({
         <DialogHeader>
           <div className="flex items-center justify-between">
             <DialogTitle className="flex items-center gap-3">
-              {invoice.type === "cotizacion" ? "Cotización" : "Factura"} {invoice.invoice_number}
-              <Badge variant={statusColors[invoice.status] as "default" | "secondary" | "destructive"}>
-                {statusLabels[invoice.status] || invoice.status}
+              {invoiceTypeLabel(invoice.type)} {invoice.invoice_number}
+              <Badge variant="outline" className={invoiceStatusBadgeClass(invoice.status)}>
+                {invoiceStatusLabel(invoice.status)}
               </Badge>
             </DialogTitle>
             <Button
@@ -111,7 +96,7 @@ export function InvoiceDetailDialog({
                 <Building2 className="h-3.5 w-3.5" />
                 {invoice.client_name}
               </Link>
-              {invoice.client_rut && <p className="text-muted-foreground">RUT: {invoice.client_rut}</p>}
+              {invoice.client_rut && <p className="text-muted-foreground">{invoice.client_rut}</p>}
               {invoice.client_address && <p className="text-muted-foreground">{invoice.client_address}</p>}
               {invoice.client_email && <p className="text-muted-foreground">{invoice.client_email}</p>}
             </div>
