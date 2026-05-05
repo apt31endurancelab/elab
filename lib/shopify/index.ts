@@ -1,29 +1,63 @@
-const SHOPIFY_DOMAIN =
-  process.env.SHOPIFY_STORE_DOMAIN ||
-  process.env.NEXT_PUBLIC_SHOPIFY_STORE_DOMAIN ||
-  "your-store.myshopify.com"
-const SHOPIFY_ADMIN_ACCESS_TOKEN = process.env.SHOPIFY_ADMIN_ACCESS_TOKEN
+import { createAdminClient } from "@/lib/supabase/admin"
 
 type ShopifyResponse<T> = {
   data?: T
   errors?: Array<{ message: string }>
 }
 
+type Credentials = { domain: string; token: string }
+
+let cachedCreds: { value: Credentials | null; ts: number } | null = null
+
+async function resolveCredentials(): Promise<Credentials | null> {
+  // Prefer the most recent OAuth-installed connection (production path).
+  // Fall back to the legacy env-var token (dev / Custom App path).
+  const now = Date.now()
+  if (cachedCreds && now - cachedCreds.ts < 60_000) return cachedCreds.value
+
+  let creds: Credentials | null = null
+  try {
+    const admin = createAdminClient()
+    const { data } = await admin
+      .from("shopify_connections")
+      .select("shop_domain, access_token")
+      .in("status", ["connected", "syncing", "connecting"])
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    if (data?.shop_domain && data?.access_token) {
+      creds = { domain: data.shop_domain, token: data.access_token }
+    }
+  } catch {
+    // ignore — fall through to env
+  }
+
+  if (!creds) {
+    const envDomain = process.env.SHOPIFY_STORE_DOMAIN || process.env.NEXT_PUBLIC_SHOPIFY_STORE_DOMAIN
+    const envToken = process.env.SHOPIFY_ADMIN_ACCESS_TOKEN
+    if (envDomain && envToken) creds = { domain: envDomain, token: envToken }
+  }
+
+  cachedCreds = { value: creds, ts: now }
+  return creds
+}
+
 async function shopifyAdminFetch<T>(query: string, variables?: Record<string, unknown>): Promise<T | null> {
-  if (!SHOPIFY_ADMIN_ACCESS_TOKEN) {
-    console.warn("Shopify Admin Access Token not configured")
+  const creds = await resolveCredentials()
+  if (!creds) {
+    console.warn("Shopify not configured (no DB connection and no env token)")
     return null
   }
 
   try {
-    const response = await fetch(`https://${SHOPIFY_DOMAIN}/admin/api/2024-01/graphql.json`, {
+    const response = await fetch(`https://${creds.domain}/admin/api/2024-10/graphql.json`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "X-Shopify-Access-Token": SHOPIFY_ADMIN_ACCESS_TOKEN,
+        "X-Shopify-Access-Token": creds.token,
       },
       body: JSON.stringify({ query, variables }),
-      next: { revalidate: 300 }, // Cache for 5 minutes
+      next: { revalidate: 300 },
     })
 
     const json: ShopifyResponse<T> = await response.json()

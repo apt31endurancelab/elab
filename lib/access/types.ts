@@ -10,6 +10,9 @@ export const SECTION_KEYS = [
   'affiliates',
   'affiliates/links',
   'affiliates/commissions',
+  'products',
+  'stock',
+  'suppliers',
   'settings',
 ] as const
 
@@ -28,6 +31,9 @@ export const SECTION_LABELS: Record<SectionKey, string> = {
   'affiliates': 'Gestionar Afiliados',
   'affiliates/links': 'Enlaces y Códigos',
   'affiliates/commissions': 'Comisiones',
+  'products': 'Productos',
+  'stock': 'Stock',
+  'suppliers': 'Proveedores',
   'settings': 'Ajustes',
 }
 

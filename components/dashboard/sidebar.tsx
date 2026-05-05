@@ -31,6 +31,9 @@ import {
   CalendarDays,
   Shield,
   Activity,
+  Package,
+  Boxes,
+  Truck,
 } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
@@ -65,6 +68,14 @@ const navItems = [
     title: "Clientes",
     items: [
       { title: "CRM Clientes", href: "/dashboard/clients", icon: Building2, sectionKey: "clients" as SectionKey },
+    ],
+  },
+  {
+    title: "Inventario",
+    items: [
+      { title: "Productos", href: "/dashboard/products", icon: Package, sectionKey: "products" as SectionKey },
+      { title: "Stock", href: "/dashboard/stock", icon: Boxes, sectionKey: "stock" as SectionKey },
+      { title: "Proveedores", href: "/dashboard/suppliers", icon: Truck, sectionKey: "suppliers" as SectionKey },
     ],
   },
   {

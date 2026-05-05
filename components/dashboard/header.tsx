@@ -37,6 +37,9 @@ const pathLabels: Record<string, string> = {
   "/dashboard/invoices": "Facturas",
   "/dashboard/invoices/calendar": "Calendario Facturas",
   "/dashboard/invoices/new": "Nueva Factura",
+  "/dashboard/products": "Productos",
+  "/dashboard/stock": "Stock",
+  "/dashboard/suppliers": "Proveedores",
 }
 
 export function DashboardHeader({ user, isDemo = false }: { user: DemoUser; isDemo?: boolean }) {

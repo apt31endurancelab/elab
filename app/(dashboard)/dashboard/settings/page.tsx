@@ -4,6 +4,23 @@ import { Badge } from "@/components/ui/badge"
 import { Settings, Store, Database, Shield, AlertCircle, CheckCircle2, Key } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { ConnectionsConfigForm } from "@/components/dashboard/connections-config-form"
+import { ShopifyConnectCard } from "@/components/dashboard/shopify-connect-card"
+import { shopifyOAuthIsConfigured } from "@/lib/shopify/oauth"
+
+async function getShopifyConnection() {
+  try {
+    const supabase = await createClient()
+    const { data } = await supabase
+      .from("shopify_connections")
+      .select("id, shop_domain, status, status_message, last_sync_at, last_sync_error, scopes, installed_at")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    return data
+  } catch {
+    return null
+  }
+}
 
 async function getSettingsData() {
   let user = null
@@ -30,15 +47,15 @@ async function getSettingsData() {
 }
 
 export default async function SettingsPage() {
-  const { user, isDemo } = await getSettingsData()
-  
+  const [{ user, isDemo }, shopifyConnection] = await Promise.all([
+    getSettingsData(),
+    getShopifyConnection(),
+  ])
+
   const hasSupabaseUrl = !!process.env.NEXT_PUBLIC_SUPABASE_URL
   const hasSupabaseKey = !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  const hasShopifyDomain = !!process.env.SHOPIFY_STORE_DOMAIN || !!process.env.NEXT_PUBLIC_SHOPIFY_STORE_DOMAIN
-  const hasShopifyToken = !!process.env.SHOPIFY_ADMIN_ACCESS_TOKEN
-  
   const supabaseConfigured = hasSupabaseUrl && hasSupabaseKey
-  const shopifyConfigured = hasShopifyDomain && hasShopifyToken
+  const oauth = shopifyOAuthIsConfigured()
 
   return (
     <div className="space-y-6">
@@ -103,43 +120,14 @@ export default async function SettingsPage() {
             </div>
           </div>
 
-          {/* Shopify */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Store className="h-4 w-4 text-muted-foreground" />
-                <span className="font-medium">Shopify</span>
-              </div>
-              <Badge variant={shopifyConfigured ? "default" : "secondary"}>
-                {shopifyConfigured ? "Configurado" : "No configurado"}
-              </Badge>
-            </div>
-            <div className="grid gap-2 pl-6 text-sm">
-              <div className="flex items-center gap-2">
-                {hasShopifyDomain ? (
-                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-                ) : (
-                  <AlertCircle className="h-3.5 w-3.5 text-muted-foreground" />
-                )}
-                <code className="text-xs bg-muted px-1.5 py-0.5 rounded">SHOPIFY_STORE_DOMAIN</code>
-                {hasShopifyDomain && (
-                  <span className="text-muted-foreground">
-                    ({process.env.SHOPIFY_STORE_DOMAIN || process.env.NEXT_PUBLIC_SHOPIFY_STORE_DOMAIN})
-                  </span>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                {hasShopifyToken ? (
-                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-                ) : (
-                  <AlertCircle className="h-3.5 w-3.5 text-muted-foreground" />
-                )}
-                <code className="text-xs bg-muted px-1.5 py-0.5 rounded">SHOPIFY_ADMIN_ACCESS_TOKEN</code>
-              </div>
-            </div>
-          </div>
         </CardContent>
       </Card>
+
+      <ShopifyConnectCard
+        initialConnection={shopifyConnection}
+        oauthConfigured={oauth.ok}
+        missingEnv={oauth.missing}
+      />
 
       <ConnectionsConfigForm />
 
