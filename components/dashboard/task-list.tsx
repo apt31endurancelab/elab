@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useCallback } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { logActivityClient } from "@/lib/activity-log-client"
 import { useRouter } from "next/navigation"
@@ -13,14 +13,23 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { MoreHorizontal, Trash2, Clock, CheckCircle2, Circle, AlertTriangle, User } from "lucide-react"
+import { MoreHorizontal, Trash2, Clock, CheckCircle2, Circle, AlertCircle, AlertTriangle, User, Pencil } from "lucide-react"
 import { cn } from "@/lib/utils"
+import {
+  TASK_STATUS_ORDER,
+  taskStatusAccentClass,
+  taskStatusCardClass,
+  taskStatusGroupLabel,
+  TASK_STATUS_ICONS,
+  type TaskStatus,
+} from "@/lib/task-status"
+import { EditTaskDialog } from "./edit-task-dialog"
 
 export type Task = {
   id: string
   title: string
   description: string | null
-  status: "pending" | "in_progress" | "completed"
+  status: TaskStatus
   priority: "low" | "medium" | "high"
   due_date: string | null
   assigned_to: string | null
@@ -55,12 +64,6 @@ const priorityLabels = {
   low: "Baja",
   medium: "Media",
   high: "Alta",
-}
-
-const statusIcons = {
-  pending: Circle,
-  in_progress: Clock,
-  completed: CheckCircle2,
 }
 
 function getDueDateWarning(dueDate: string | null, status: string): { level: "critical" | "warning" | "soon" | null; daysLeft: number } {
@@ -117,38 +120,18 @@ function DeadlineWarning({ dueDate, status }: { dueDate: string | null; status: 
 export function TaskList({ tasks, isDemo = false }: { tasks: Task[]; isDemo?: boolean }) {
   const router = useRouter()
   const [loading, setLoading] = useState<string | null>(null)
-  const [localTasks, setLocalTasks] = useState<Task[]>([])
-  const [hydrated, setHydrated] = useState(false)
+  const [editingTask, setEditingTask] = useState<Task | null>(null)
 
-  // Load from localStorage on mount for demo mode
-  useEffect(() => {
-    if (isDemo) {
-      setLocalTasks(loadTasksFromStorage(tasks))
-    }
-    setHydrated(true)
-  }, [isDemo, tasks])
-
-  // Listen for new tasks created via CreateTaskDialog
-  useEffect(() => {
-    if (!isDemo) return
-    const handler = () => {
-      setLocalTasks(loadTasksFromStorage(tasks))
-    }
-    window.addEventListener("tasks-updated", handler)
-    return () => window.removeEventListener("tasks-updated", handler)
-  }, [isDemo, tasks])
-
-  const updateLocalTasks = useCallback((updater: (prev: Task[]) => Task[]) => {
-    setLocalTasks(prev => {
-      const next = updater(prev)
-      saveTasksToStorage(next)
-      return next
-    })
+  const updateDemoStorage = useCallback((updater: (prev: Task[]) => Task[]) => {
+    const current = loadTasksFromStorage([])
+    const next = updater(current)
+    saveTasksToStorage(next)
+    window.dispatchEvent(new Event("tasks-updated"))
   }, [])
 
-  const updateTaskStatus = async (taskId: string, status: Task["status"]) => {
+  const updateTaskStatus = async (taskId: string, status: TaskStatus) => {
     if (isDemo) {
-      updateLocalTasks(prev => prev.map(t => t.id === taskId ? { ...t, status } : t))
+      updateDemoStorage(prev => prev.map(t => t.id === taskId ? { ...t, status } : t))
       return
     }
 
@@ -170,7 +153,7 @@ export function TaskList({ tasks, isDemo = false }: { tasks: Task[]; isDemo?: bo
 
   const deleteTask = async (taskId: string) => {
     if (isDemo) {
-      updateLocalTasks(prev => prev.filter(t => t.id !== taskId))
+      updateDemoStorage(prev => prev.filter(t => t.id !== taskId))
       return
     }
 
@@ -190,11 +173,16 @@ export function TaskList({ tasks, isDemo = false }: { tasks: Task[]; isDemo?: bo
     setLoading(null)
   }
 
-  const displayTasks = isDemo ? localTasks : tasks
+  const handleTaskUpdated = (updated: Task) => {
+    if (isDemo) {
+      updateDemoStorage(prev => prev.map(t => t.id === updated.id ? updated : t))
+    } else {
+      router.refresh()
+    }
+    setEditingTask(null)
+  }
 
-  if (!hydrated) return null
-
-  if (displayTasks.length === 0) {
+  if (tasks.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
         <Circle className="h-12 w-12 text-muted-foreground/50 mb-4" />
@@ -204,30 +192,28 @@ export function TaskList({ tasks, isDemo = false }: { tasks: Task[]; isDemo?: bo
     )
   }
 
-  const groupedTasks = {
-    pending: displayTasks.filter(t => t.status === "pending"),
-    in_progress: displayTasks.filter(t => t.status === "in_progress"),
-    completed: displayTasks.filter(t => t.status === "completed"),
-  }
+  const groupedTasks = TASK_STATUS_ORDER.reduce<Record<TaskStatus, Task[]>>((acc, status) => {
+    acc[status] = tasks.filter(t => t.status === status)
+    return acc
+  }, { pending: [], in_progress: [], stuck: [], completed: [] })
 
   return (
     <div className="space-y-6">
-      {(["pending", "in_progress", "completed"] as const).map((status) => {
-        const StatusIcon = statusIcons[status]
+      {TASK_STATUS_ORDER.map((status) => {
+        const StatusIcon = TASK_STATUS_ICONS[status]
         const statusTasks = groupedTasks[status]
 
         if (statusTasks.length === 0) return null
 
+        const accent = taskStatusAccentClass(status)
+        const isCompleted = status === "completed"
+
         return (
           <div key={status} className="space-y-2">
-            <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+            <div className={cn("flex items-center gap-2 text-sm font-semibold", accent)}>
               <StatusIcon className="h-4 w-4" />
-              <span>
-                {status === "pending" && "Pendientes"}
-                {status === "in_progress" && "En Progreso"}
-                {status === "completed" && "Completadas"}
-              </span>
-              <span className="text-xs bg-muted px-1.5 py-0.5 rounded">
+              <span>{taskStatusGroupLabel(status)}</span>
+              <span className="text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded font-normal">
                 {statusTasks.length}
               </span>
             </div>
@@ -237,12 +223,13 @@ export function TaskList({ tasks, isDemo = false }: { tasks: Task[]; isDemo?: bo
                   key={task.id}
                   className={cn(
                     "flex items-start gap-3 p-3 rounded-lg border bg-card transition-opacity",
+                    taskStatusCardClass(task.status),
                     loading === task.id && "opacity-50",
-                    task.status === "completed" && "opacity-60"
+                    isCompleted && "opacity-60",
                   )}
                 >
                   <Checkbox
-                    checked={task.status === "completed"}
+                    checked={isCompleted}
                     onCheckedChange={(checked) =>
                       updateTaskStatus(task.id, checked ? "completed" : "pending")
                     }
@@ -251,7 +238,7 @@ export function TaskList({ tasks, isDemo = false }: { tasks: Task[]; isDemo?: bo
                   <div className="flex-1 min-w-0">
                     <p className={cn(
                       "font-medium",
-                      task.status === "completed" && "line-through"
+                      isCompleted && "text-muted-foreground"
                     )}>
                       {task.title}
                     </p>
@@ -285,6 +272,10 @@ export function TaskList({ tasks, isDemo = false }: { tasks: Task[]; isDemo?: bo
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => setEditingTask(task)}>
+                        <Pencil className="h-4 w-4 mr-2" />
+                        Editar
+                      </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => updateTaskStatus(task.id, "pending")}>
                         <Circle className="h-4 w-4 mr-2" />
                         Marcar como Pendiente
@@ -292,6 +283,10 @@ export function TaskList({ tasks, isDemo = false }: { tasks: Task[]; isDemo?: bo
                       <DropdownMenuItem onClick={() => updateTaskStatus(task.id, "in_progress")}>
                         <Clock className="h-4 w-4 mr-2" />
                         Marcar En Progreso
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => updateTaskStatus(task.id, "stuck")}>
+                        <AlertCircle className="h-4 w-4 mr-2" />
+                        Marcar Estancada
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => updateTaskStatus(task.id, "completed")}>
                         <CheckCircle2 className="h-4 w-4 mr-2" />
@@ -312,6 +307,14 @@ export function TaskList({ tasks, isDemo = false }: { tasks: Task[]; isDemo?: bo
           </div>
         )
       })}
+
+      <EditTaskDialog
+        task={editingTask}
+        open={editingTask !== null}
+        onOpenChange={(open) => { if (!open) setEditingTask(null) }}
+        onSaved={handleTaskUpdated}
+        isDemo={isDemo}
+      />
     </div>
   )
 }
