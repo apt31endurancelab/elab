@@ -1,3 +1,4 @@
+import { Suspense } from "react"
 import { createClient } from "@/lib/supabase/server"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -123,11 +124,13 @@ export default async function SettingsPage() {
         </CardContent>
       </Card>
 
-      <ShopifyConnectCard
-        initialConnection={shopifyConnection}
-        oauthConfigured={oauth.ok}
-        missingEnv={oauth.missing}
-      />
+      <Suspense fallback={null}>
+        <ShopifyConnectCard
+          initialConnection={shopifyConnection}
+          oauthConfigured={oauth.ok}
+          missingEnv={oauth.missing}
+        />
+      </Suspense>
 
       <ConnectionsConfigForm />
 
