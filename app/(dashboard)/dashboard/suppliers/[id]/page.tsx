@@ -16,7 +16,8 @@ import {
 import {
   ArrowLeft, Truck, Mail, Phone, Globe, MapPin, Building2, Calendar, CreditCard,
 } from "lucide-react"
-import { formatCurrency, marginPercent, type Supplier, type ProductSupplier, type Product } from "@/lib/inventory"
+import { marginPercent, type Supplier, type ProductSupplier, type Product } from "@/lib/inventory"
+import { Money } from "@/components/money"
 
 type ProductLink = ProductSupplier & { product: Product }
 
@@ -123,7 +124,7 @@ export default async function SupplierDetailPage({ params }: { params: Promise<{
               <p className="text-muted-foreground">Como proveedor principal</p>
             </div>
             <div>
-              <p className="text-lg font-semibold">{formatCurrency(totalCostBaseline, supplier.default_currency)}</p>
+              <p className="text-lg font-semibold"><Money amount={totalCostBaseline} from={supplier.default_currency} /></p>
               <p className="text-muted-foreground">Coste mínimo agregado (qty × MOQ)</p>
             </div>
           </CardContent>
@@ -163,8 +164,8 @@ export default async function SupplierDetailPage({ params }: { params: Promise<{
                         {l.product?.sku && <p className="text-xs font-mono text-muted-foreground">{l.product.sku}</p>}
                       </TableCell>
                       <TableCell className="font-mono text-xs">{l.supplier_sku || "—"}</TableCell>
-                      <TableCell>{formatCurrency(Number(l.cost_price), l.currency)}</TableCell>
-                      <TableCell>{l.product ? formatCurrency(Number(l.product.price), l.product.currency) : "—"}</TableCell>
+                      <TableCell><Money amount={Number(l.cost_price)} from={l.currency} /></TableCell>
+                      <TableCell>{l.product ? <Money amount={Number(l.product.price)} from={l.product.currency} /> : "—"}</TableCell>
                       <TableCell>
                         <span className={margin > 30 ? "text-emerald-600 dark:text-emerald-400" : margin > 0 ? "text-orange-500" : "text-destructive"}>
                           {margin.toFixed(1)}%

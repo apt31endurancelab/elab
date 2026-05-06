@@ -13,7 +13,8 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { ArrowLeft, Package, AlertTriangle } from "lucide-react"
-import { formatCurrency, marginPercent, isLowStock, STOCK_REASON_LABELS, type Product, type ProductSupplier, type Supplier, type StockMovement } from "@/lib/inventory"
+import { marginPercent, isLowStock, STOCK_REASON_LABELS, type Product, type ProductSupplier, type Supplier, type StockMovement } from "@/lib/inventory"
+import { Money } from "@/components/money"
 import { ProductSuppliersEditor } from "@/components/dashboard/product-suppliers-editor"
 import { StockAdjustForm } from "@/components/dashboard/stock-adjust-form"
 import { invoiceTypeLabel } from "@/lib/invoice-status"
@@ -104,14 +105,14 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Coste base</CardTitle></CardHeader>
           <CardContent>
-            <div className="text-xl font-bold">{formatCurrency(Number(product.cost_price), product.currency)}</div>
+            <div className="text-xl font-bold"><Money amount={Number(product.cost_price)} from={product.currency} /></div>
             <p className="text-xs text-muted-foreground">{links.find(l => l.is_primary)?.supplier?.name || "Sin proveedor principal"}</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Precio venta</CardTitle></CardHeader>
           <CardContent>
-            <div className="text-xl font-bold">{formatCurrency(Number(product.price), product.currency)}</div>
+            <div className="text-xl font-bold"><Money amount={Number(product.price)} from={product.currency} /></div>
           </CardContent>
         </Card>
         <Card>
@@ -120,7 +121,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
             <div className={`text-xl font-bold ${margin > 30 ? "text-emerald-600 dark:text-emerald-400" : margin > 0 ? "text-orange-500" : "text-destructive"}`}>
               {margin.toFixed(1)}%
             </div>
-            <p className="text-xs text-muted-foreground">{formatCurrency(Number(product.price) - Number(product.cost_price), product.currency)} por unidad</p>
+            <p className="text-xs text-muted-foreground"><Money amount={Number(product.price) - Number(product.cost_price)} from={product.currency} /> por unidad</p>
           </CardContent>
         </Card>
         <Card className={lowStock ? "border-orange-500/50" : undefined}>

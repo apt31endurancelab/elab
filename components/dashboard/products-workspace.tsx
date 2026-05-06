@@ -32,7 +32,8 @@ import {
 import { Plus, Search, MoreHorizontal, Pencil, Trash2, Cloud, Package, AlertTriangle } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ProductDialog } from "./product-dialog"
-import { type Product, formatCurrency, marginPercent, isLowStock } from "@/lib/inventory"
+import { type Product, marginPercent, isLowStock } from "@/lib/inventory"
+import { Money } from "@/components/money"
 
 const ALL = "__all__"
 type SyncFilter = "all" | "synced" | "unsynced" | "error"
@@ -146,7 +147,7 @@ export function ProductsWorkspace({
         </Card>
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Valor inventario (coste)</CardTitle></CardHeader>
-          <CardContent><div className="text-2xl font-bold">{formatCurrency(stats.inventoryValue)}</div></CardContent>
+          <CardContent><div className="text-2xl font-bold"><Money amount={stats.inventoryValue} /></div></CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Sincronizados Shopify</CardTitle></CardHeader>
@@ -263,8 +264,8 @@ export function ProductsWorkspace({
                         <p className="font-mono text-xs">{p.sku || "—"}</p>
                         {p.category && <p className="text-xs text-muted-foreground">{p.category}</p>}
                       </TableCell>
-                      <TableCell>{formatCurrency(Number(p.cost_price), p.currency)}</TableCell>
-                      <TableCell className="font-medium">{formatCurrency(Number(p.price), p.currency)}</TableCell>
+                      <TableCell><Money amount={Number(p.cost_price)} from={p.currency} /></TableCell>
+                      <TableCell className="font-medium"><Money amount={Number(p.price)} from={p.currency} /></TableCell>
                       <TableCell>
                         <span className={margin > 30 ? "text-emerald-600 dark:text-emerald-400" : margin > 0 ? "text-orange-500" : "text-destructive"}>
                           {margin.toFixed(1)}%

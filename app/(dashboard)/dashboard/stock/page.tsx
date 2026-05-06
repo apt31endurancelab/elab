@@ -12,7 +12,8 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { AlertCircle, AlertTriangle, Boxes, DollarSign, Package } from "lucide-react"
-import { formatCurrency, isLowStock, marginPercent, STOCK_REASON_LABELS, type Product, type StockMovement } from "@/lib/inventory"
+import { isLowStock, marginPercent, STOCK_REASON_LABELS, type Product, type StockMovement } from "@/lib/inventory"
+import { Money } from "@/components/money"
 import { cn } from "@/lib/utils"
 
 async function getData() {
@@ -82,7 +83,7 @@ export default async function StockPage() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(inventoryCost)}</div>
+            <div className="text-2xl font-bold"><Money amount={inventoryCost} /></div>
             <p className="text-xs text-muted-foreground">Capital inmovilizado</p>
           </CardContent>
         </Card>
@@ -92,8 +93,8 @@ export default async function StockPage() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(inventoryRetail)}</div>
-            <p className="text-xs text-emerald-600 dark:text-emerald-400">+{formatCurrency(potentialMargin)} potencial</p>
+            <div className="text-2xl font-bold"><Money amount={inventoryRetail} /></div>
+            <p className="text-xs text-emerald-600 dark:text-emerald-400">+<Money amount={potentialMargin} /> potencial</p>
           </CardContent>
         </Card>
         <Card className={lowStock.length > 0 ? "border-orange-500/50" : undefined}>
@@ -150,7 +151,7 @@ export default async function StockPage() {
                       <TableCell className="font-mono text-xs">{p.sku || "—"}</TableCell>
                       <TableCell className={cn("font-medium", p.stock <= 0 ? "text-destructive" : "text-orange-500")}>{p.stock}</TableCell>
                       <TableCell className="text-muted-foreground">{p.low_stock_threshold || 0}</TableCell>
-                      <TableCell>{formatCurrency(Number(p.cost_price), p.currency)}</TableCell>
+                      <TableCell><Money amount={Number(p.cost_price)} from={p.currency} /></TableCell>
                       <TableCell>{margin.toFixed(1)}%</TableCell>
                       <TableCell>
                         <Link href={`/dashboard/products/${p.id}`} className="text-xs text-primary hover:underline">

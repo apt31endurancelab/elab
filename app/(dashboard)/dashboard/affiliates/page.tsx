@@ -13,6 +13,7 @@ import { Users, DollarSign, TrendingUp, Percent } from "lucide-react"
 import { CreateAffiliateDialog } from "@/components/dashboard/create-affiliate-dialog"
 import { AffiliateActions } from "@/components/dashboard/affiliate-actions"
 import { demoAffiliates } from "@/lib/demo-data"
+import { Money } from "@/components/money"
 
 interface AffiliateWithStats {
   id: string
@@ -90,7 +91,7 @@ export default async function AffiliatesPage() {
     ? affiliates.reduce((sum, a) => sum + a.commission_rate, 0) / affiliates.length
     : 0
 
-  const stats = [
+  const stats: { title: string; value: React.ReactNode; description: string; icon: typeof Users }[] = [
     {
       title: "Afiliados Totales",
       value: totalAffiliates.toString(),
@@ -99,13 +100,13 @@ export default async function AffiliatesPage() {
     },
     {
       title: "Ventas Generadas",
-      value: `$${totalSalesAmount.toLocaleString("es-CL")}`,
+      value: <Money amount={totalSalesAmount} />,
       description: "Total via afiliados",
       icon: TrendingUp,
     },
     {
       title: "Comisiones Totales",
-      value: `$${totalCommissions.toLocaleString("es-CL")}`,
+      value: <Money amount={totalCommissions} />,
       description: "Pagadas + Pendientes",
       icon: DollarSign,
     },
@@ -176,13 +177,13 @@ export default async function AffiliatesPage() {
                     </TableCell>
                     <TableCell>{affiliate.commission_rate}%</TableCell>
                     <TableCell>
-                      ${affiliate.totalSales.toLocaleString("es-CL")}
+                      <Money amount={affiliate.totalSales} />
                       <span className="text-muted-foreground text-xs ml-1">
                         ({affiliate.salesCount})
                       </span>
                     </TableCell>
                     <TableCell className="font-medium text-emerald-600 dark:text-emerald-400">
-                      ${affiliate.totalCommission.toLocaleString("es-CL")}
+                      <Money amount={affiliate.totalCommission} />
                     </TableCell>
                     <TableCell>
                       <Badge variant={affiliate.status === "active" ? "default" : "secondary"}>

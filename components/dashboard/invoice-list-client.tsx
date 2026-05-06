@@ -15,10 +15,7 @@ import { InvoiceActions } from "./invoice-actions"
 import { InvoiceDetailDialog, type InvoiceWithClient } from "./invoice-detail-dialog"
 import { openInvoicePdf } from "./invoice-pdf"
 import { invoiceStatusBadgeClass, invoiceStatusLabel, invoiceTypeLabel } from "@/lib/invoice-status"
-
-function formatCLP(amount: number) {
-  return `$${amount.toLocaleString("es-CL")}`
-}
+import { Money } from "@/components/money"
 
 export function InvoiceListClient({
   invoices,
@@ -80,7 +77,7 @@ export function InvoiceListClient({
                 {new Date(invoice.issue_date).toLocaleDateString("es-CL")}
               </TableCell>
               <TableCell className="font-medium">
-                {formatCLP(Number(invoice.total))}
+                <Money amount={Number(invoice.total)} />
               </TableCell>
               <TableCell>
                 <Badge variant="outline" className={invoiceStatusBadgeClass(invoice.status)}>

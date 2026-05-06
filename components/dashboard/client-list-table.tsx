@@ -14,16 +14,13 @@ import { Building2 } from "lucide-react"
 import { ClientActions } from "./client-actions"
 import { type Client } from "./create-client-dialog"
 import { bareTaxId } from "@/lib/tax-id"
+import { Money } from "@/components/money"
 
 type ClientWithStats = Client & {
   invoiceCount: number
   overdueCount: number
   pendingReminders: number
   totalInvoiced: number
-}
-
-function formatCLP(amount: number) {
-  return `$${amount.toLocaleString("es-CL")}`
 }
 
 export function ClientListTable({ clients, isDemo }: { clients: ClientWithStats[]; isDemo: boolean }) {
@@ -70,7 +67,7 @@ export function ClientListTable({ clients, isDemo }: { clients: ClientWithStats[
             <TableCell className="text-muted-foreground">{client.email || "—"}</TableCell>
             <TableCell>{client.invoiceCount}</TableCell>
             <TableCell className="font-medium">
-              {formatCLP(client.totalInvoiced)}
+              <Money amount={client.totalInvoiced} />
             </TableCell>
             <TableCell>
               <div className="flex gap-1">

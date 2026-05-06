@@ -13,6 +13,7 @@ import { FileDown, Building2 } from "lucide-react"
 import Link from "next/link"
 import { openInvoicePdf } from "./invoice-pdf"
 import { invoiceStatusBadgeClass, invoiceStatusLabel, invoiceTypeLabel } from "@/lib/invoice-status"
+import { Money } from "@/components/money"
 
 export type InvoiceItem = {
   id?: string
@@ -45,10 +46,6 @@ export type InvoiceWithClient = {
   notes: string | null
   created_at: string
   items: InvoiceItem[]
-}
-
-function formatCLP(amount: number) {
-  return `$${amount.toLocaleString("es-CL")}`
 }
 
 export function InvoiceDetailDialog({
@@ -130,8 +127,8 @@ export function InvoiceDetailDialog({
                   <tr key={i} className="border-b border-muted">
                     <td className="py-2">{item.description}</td>
                     <td className="text-right py-2">{item.quantity}</td>
-                    <td className="text-right py-2">{formatCLP(item.unit_price)}</td>
-                    <td className="text-right py-2">{formatCLP(item.amount)}</td>
+                    <td className="text-right py-2"><Money amount={item.unit_price} /></td>
+                    <td className="text-right py-2"><Money amount={item.amount} /></td>
                   </tr>
                 ))}
               </tbody>
@@ -141,16 +138,16 @@ export function InvoiceDetailDialog({
           <div className="flex flex-col items-end gap-1 text-sm">
             <div className="flex justify-between w-48">
               <span className="text-muted-foreground">Subtotal</span>
-              <span>{formatCLP(invoice.subtotal)}</span>
+              <Money amount={invoice.subtotal} />
             </div>
             <div className="flex justify-between w-48">
               <span className="text-muted-foreground">IVA {invoice.tax_rate}%</span>
-              <span>{formatCLP(invoice.tax_amount)}</span>
+              <Money amount={invoice.tax_amount} />
             </div>
             <Separator className="w-48" />
             <div className="flex justify-between w-48 font-bold">
               <span>Total</span>
-              <span>{formatCLP(invoice.total)}</span>
+              <Money amount={invoice.total} />
             </div>
           </div>
 

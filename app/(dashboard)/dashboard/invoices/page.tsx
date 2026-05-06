@@ -12,6 +12,7 @@ import {
 import { FileText, DollarSign, Clock, AlertTriangle } from "lucide-react"
 import { demoInvoices } from "@/lib/demo-data"
 import { InvoiceListClient } from "@/components/dashboard/invoice-list-client"
+import { Money } from "@/components/money"
 
 export type InvoiceRow = {
   id: string
@@ -85,10 +86,6 @@ async function getInvoices(): Promise<{ invoices: InvoiceRow[]; isDemo: boolean 
   }
 }
 
-function formatCLP(amount: number) {
-  return `$${amount.toLocaleString("es-CL")}`
-}
-
 export default async function InvoicesPage() {
   const { invoices, isDemo } = await getInvoices()
 
@@ -97,22 +94,22 @@ export default async function InvoicesPage() {
   const pendingTotal = invoices.filter(i => i.status === "sent" || i.status === "draft").reduce((sum, inv) => sum + Number(inv.total), 0)
   const overdueCount = invoices.filter(i => i.status === "overdue").length
 
-  const stats = [
+  const stats: { title: string; value: React.ReactNode; description: string; icon: typeof FileText }[] = [
     {
       title: "Total Facturado",
-      value: formatCLP(totalInvoiced),
+      value: <Money amount={totalInvoiced} />,
       description: `${invoices.length} documentos`,
       icon: FileText,
     },
     {
       title: "Cobrado",
-      value: formatCLP(paidTotal),
+      value: <Money amount={paidTotal} />,
       description: `${invoices.filter(i => i.status === "paid").length} pagadas`,
       icon: DollarSign,
     },
     {
       title: "Pendiente de Cobro",
-      value: formatCLP(pendingTotal),
+      value: <Money amount={pendingTotal} />,
       description: "Borradores + enviadas",
       icon: Clock,
     },

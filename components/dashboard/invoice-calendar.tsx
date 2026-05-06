@@ -33,6 +33,8 @@ import { openInvoicePdf } from "./invoice-pdf"
 import { invoiceStatusBadgeClass, invoiceStatusLabel, invoiceTypeLabel } from "@/lib/invoice-status"
 import { buildIcs, downloadIcs } from "@/lib/calendar-export"
 import { QuickCreateTaskDialog } from "./quick-create-task-dialog"
+import { Money } from "@/components/money"
+import { useCurrency } from "@/components/currency-provider"
 
 export type CalendarInvoice = {
   id: string
@@ -85,10 +87,6 @@ const eventConfig: Record<string, { color: string; bg: string; icon: typeof File
   recurring_next: { color: "text-purple-600 dark:text-purple-400", bg: "bg-purple-500/15 border-purple-500/30", icon: RefreshCw, label: "Recurrente" },
   task: { color: "text-cyan-600 dark:text-cyan-400", bg: "bg-cyan-500/15 border-cyan-500/30", icon: CheckSquare, label: "Tarea" },
   task_overdue: { color: "text-red-600 dark:text-red-400", bg: "bg-red-500/15 border-red-500/30", icon: CheckSquare, label: "Tarea vencida" },
-}
-
-function formatCLP(amount: number) {
-  return `$${amount.toLocaleString("es-CL")}`
 }
 
 function addDays(dateStr: string, days: number): string {
@@ -170,6 +168,7 @@ const DAY_NAMES = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
 
 export function InvoiceCalendar({ invoices, tasks = [], isDemo = false }: { invoices: CalendarInvoice[]; tasks?: CalendarTask[]; isDemo?: boolean }) {
   const today = new Date()
+  const { format: formatMoney } = useCurrency()
   const [currentYear, setCurrentYear] = useState(today.getFullYear())
   const [currentMonth, setCurrentMonth] = useState(today.getMonth())
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
@@ -220,7 +219,7 @@ export function InvoiceCalendar({ invoices, tasks = [], isDemo = false }: { invo
         ? `${e.label} (${e.invoice.client_name})`
         : e.label
       const description = e.invoice
-        ? `${invoiceTypeLabel(e.invoice.type)} ${e.invoice.invoice_number} — ${e.invoice.client_name} — ${formatCLP(e.invoice.total)}`
+        ? `${invoiceTypeLabel(e.invoice.type)} ${e.invoice.invoice_number} — ${e.invoice.client_name} — ${formatMoney(e.invoice.total)}`
         : e.task?.description || undefined
       return { uid: `${id}-${e.type}@endurancelab`, date: e.date, summary, description }
     })
@@ -441,7 +440,7 @@ export function InvoiceCalendar({ invoices, tasks = [], isDemo = false }: { invo
                             >
                               {event.invoice.client_name}
                             </Link>
-                            <span className="text-xs text-muted-foreground"> — {formatCLP(event.invoice.total)}</span>
+                            <span className="text-xs text-muted-foreground"> — <Money amount={event.invoice.total} /></span>
                           </>
                         )}
                         {event.task && (
@@ -561,7 +560,7 @@ export function InvoiceCalendar({ invoices, tasks = [], isDemo = false }: { invo
                       <span className="text-muted-foreground">
                         {invoiceTypeLabel(event.invoice.type)}
                       </span>
-                      <span className="font-bold">{formatCLP(event.invoice.total)}</span>
+                      <Money amount={event.invoice.total} className="font-bold" />
                     </div>
                     {event.invoice.is_recurring && (
                       <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">

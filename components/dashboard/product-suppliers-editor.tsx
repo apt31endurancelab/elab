@@ -33,7 +33,8 @@ import {
 } from "@/components/ui/table"
 import { Spinner } from "@/components/ui/spinner"
 import { Plus, Star, Trash2, Pencil } from "lucide-react"
-import { type Product, type ProductSupplier, type Supplier, formatCurrency, marginPercent, SUPPORTED_CURRENCIES } from "@/lib/inventory"
+import { type Product, type ProductSupplier, type Supplier, marginPercent, SUPPORTED_CURRENCIES } from "@/lib/inventory"
+import { Money } from "@/components/money"
 
 type Link = ProductSupplier & { supplier?: Supplier }
 
@@ -173,7 +174,7 @@ export function ProductSuppliersEditor({
                       </Link>
                     </TableCell>
                     <TableCell className="font-mono text-xs">{l.supplier_sku || "—"}</TableCell>
-                    <TableCell>{formatCurrency(Number(l.cost_price), l.currency)}</TableCell>
+                    <TableCell><Money amount={Number(l.cost_price)} from={l.currency} /></TableCell>
                     <TableCell>
                       <span className={margin > 30 ? "text-emerald-600 dark:text-emerald-400" : margin > 0 ? "text-orange-500" : "text-destructive"}>
                         {margin.toFixed(1)}%

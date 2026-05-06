@@ -31,6 +31,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
+import { useCurrency } from "@/components/currency-provider"
 
 interface ActivityLog {
   id: string
@@ -118,12 +119,12 @@ function formatDayHeader(dateStr: string): string {
   })
 }
 
-function getMetadataDescription(log: ActivityLog): string | null {
+function getMetadataDescription(log: ActivityLog, formatMoney: (n: number) => string): string | null {
   const meta = log.metadata
   if (!meta || Object.keys(meta).length === 0) return null
 
   if (meta.client_name && meta.total) {
-    return `${meta.client_name} — ${Number(meta.total).toLocaleString("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 })}`
+    return `${meta.client_name} — ${formatMoney(Number(meta.total))}`
   }
   if (meta.role) return `Rol: ${meta.role}`
   if (meta.old_role && meta.new_role) return `${meta.old_role} → ${meta.new_role}`
@@ -174,6 +175,7 @@ function groupLogsByDay(logs: ActivityLog[]): Map<string, ActivityLog[]> {
 }
 
 export function ActivityTimeline({ logs, isSuperadmin, users }: ActivityTimelineProps) {
+  const { format: formatMoney } = useCurrency()
   const [filterUser, setFilterUser] = useState<string>("all")
   const [filterType, setFilterType] = useState<string>("all")
   const [filterDate, setFilterDate] = useState<string>("")
@@ -287,7 +289,7 @@ export function ActivityTimeline({ logs, isSuperadmin, users }: ActivityTimeline
                   const Icon = config.icon
                   const userInfo = users[log.user_id]
                   const userName = userInfo?.full_name || userInfo?.email || log.user_id.slice(0, 8)
-                  const metaDesc = getMetadataDescription(log)
+                  const metaDesc = getMetadataDescription(log, formatMoney)
                   const link = getEntityLink(log)
 
                   const CardWrapper = link

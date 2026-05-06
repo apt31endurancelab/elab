@@ -25,6 +25,7 @@ import Link from "next/link"
 import { demoClients, demoInvoices, demoClientActivities } from "@/lib/demo-data"
 import { ClientTimeline } from "@/components/dashboard/client-timeline"
 import { invoiceStatusBadgeClass, invoiceStatusLabel, invoiceTypeLabel } from "@/lib/invoice-status"
+import { Money } from "@/components/money"
 import { formatTaxId } from "@/lib/tax-id"
 
 type ClientDetail = {
@@ -62,10 +63,6 @@ type Activity = {
   reminder_date: string | null
   reminder_completed: boolean
   created_at: string
-}
-
-function formatCLP(amount: number) {
-  return `$${amount.toLocaleString("es-CL")}`
 }
 
 async function getClientData(clientId: string): Promise<{
@@ -223,7 +220,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
               <CardTitle className="text-sm font-medium text-muted-foreground">Facturado</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-xl font-bold">{formatCLP(totalInvoiced)}</div>
+              <div className="text-xl font-bold"><Money amount={totalInvoiced} /></div>
             </CardContent>
           </Card>
           <Card>
@@ -231,7 +228,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
               <CardTitle className="text-sm font-medium text-muted-foreground">Cobrado</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-xl font-bold text-emerald-600 dark:text-emerald-400">{formatCLP(paidTotal)}</div>
+              <div className="text-xl font-bold text-emerald-600 dark:text-emerald-400"><Money amount={paidTotal} /></div>
             </CardContent>
           </Card>
           <Card>
@@ -239,7 +236,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
               <CardTitle className="text-sm font-medium text-muted-foreground">Pendiente</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-xl font-bold">{formatCLP(totalInvoiced - paidTotal)}</div>
+              <div className="text-xl font-bold"><Money amount={totalInvoiced - paidTotal} /></div>
             </CardContent>
           </Card>
           <Card>
@@ -287,7 +284,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
                       <TableCell className="text-muted-foreground text-sm">
                         {new Date(inv.issue_date).toLocaleDateString("es-CL")}
                       </TableCell>
-                      <TableCell className="font-medium">{formatCLP(Number(inv.total))}</TableCell>
+                      <TableCell className="font-medium"><Money amount={Number(inv.total)} /></TableCell>
                       <TableCell>
                         <Badge variant="outline" className={invoiceStatusBadgeClass(inv.status)}>
                           {invoiceStatusLabel(inv.status)}
