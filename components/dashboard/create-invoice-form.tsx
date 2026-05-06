@@ -4,6 +4,7 @@ import { useState, useMemo } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { logActivityClient } from "@/lib/activity-log-client"
 import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -86,9 +87,10 @@ export function CreateInvoiceForm({
 
   const selectedClient = clients.find(c => c.id === clientId)
 
-  const subtotal = useMemo(() => lines.reduce((sum, line) => sum + line.amount, 0), [lines])
-  const taxAmount = useMemo(() => Math.round(subtotal * (Number(taxRate) / 100)), [subtotal, taxRate])
-  const total = useMemo(() => subtotal + taxAmount, [subtotal, taxAmount])
+  const round2 = (n: number) => Math.round(n * 100) / 100
+  const subtotal = useMemo(() => round2(lines.reduce((sum, line) => sum + line.amount, 0)), [lines])
+  const taxAmount = useMemo(() => round2(subtotal * (Number(taxRate) / 100)), [subtotal, taxRate])
+  const total = useMemo(() => round2(subtotal + taxAmount), [subtotal, taxAmount])
 
   const addLine = () => {
     setLines([...lines, { product_id: "", description: "", quantity: 1, unit_price: 0, amount: 0 }])
@@ -241,6 +243,11 @@ export function CreateInvoiceForm({
 
     if (invoiceError || !invoice) {
       console.error("Error creating invoice:", invoiceError)
+      const msg = invoiceError?.message || "No se pudo guardar la factura"
+      const hint = msg.includes("invoices_type_check")
+        ? " — falta correr la migración 004_task_status_stuck_and_invoices.sql en Supabase para habilitar 'proforma'"
+        : ""
+      toast.error(`Error al guardar: ${msg}${hint}`)
       setLoading(false)
       return
     }
@@ -258,6 +265,7 @@ export function CreateInvoiceForm({
     const { error: itemsError } = await supabase.from("invoice_items").insert(items)
     if (itemsError) {
       console.error("Error creating invoice items:", itemsError)
+      toast.error(`Error al guardar líneas: ${itemsError.message}`)
     }
 
     // Deduct stock for products
@@ -374,10 +382,12 @@ export function CreateInvoiceForm({
                 <FieldLabel>Impuesto (%)</FieldLabel>
                 <Input
                   type="number"
+                  inputMode="decimal"
                   value={taxRate}
                   onChange={(e) => setTaxRate(e.target.value)}
                   min="0"
                   max="100"
+                  step="0.01"
                 />
               </Field>
             </div>
@@ -472,15 +482,18 @@ export function CreateInvoiceForm({
                 <div className="col-span-1">
                   <Input
                     type="number"
+                    inputMode="decimal"
                     value={line.quantity || ""}
                     onChange={(e) => updateLine(index, "quantity", e.target.value)}
                     min="0"
+                    step="0.01"
                     className="text-sm"
                   />
                 </div>
                 <div className="col-span-2">
                   <Input
                     type="number"
+                    inputMode="decimal"
                     value={line.unit_price || ""}
                     onChange={(e) => updateLine(index, "unit_price", e.target.value)}
                     min="0"
