@@ -3,6 +3,7 @@ import { Geist, Geist_Mono, Comfortaa } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { Toaster } from 'sonner'
 import { ThemeProvider } from '@/components/theme-provider'
+import { CurrencyProvider } from '@/components/currency-provider'
 import './globals.css'
 
 const _geist = Geist({ subsets: ["latin"] });
@@ -37,9 +38,11 @@ export default function RootLayout({
           enableSystem={false}
           disableTransitionOnChange
         >
-          {children}
-          <Toaster position="bottom-right" richColors />
-          {process.env.NODE_ENV === 'production' && <Analytics />}
+          <CurrencyProvider>
+            {children}
+            <Toaster position="bottom-right" richColors />
+            {process.env.NODE_ENV === 'production' && <Analytics />}
+          </CurrencyProvider>
         </ThemeProvider>
       </body>
     </html>

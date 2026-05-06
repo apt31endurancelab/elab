@@ -16,6 +16,9 @@ import Link from "next/link"
 import { Switch } from "@/components/ui/switch"
 import { useTheme } from "next-themes"
 import { Moon, Sun } from "lucide-react"
+import { ProfileMenu } from "./profile-menu"
+import { NotificationsBell } from "./notifications-bell"
+import { CurrencySelector } from "./currency-selector"
 
 interface DemoUser {
   id: string
@@ -32,25 +35,47 @@ const pathLabels: Record<string, string> = {
   "/dashboard/affiliates/commissions": "Comisiones",
   "/dashboard/settings": "Ajustes",
   "/dashboard/timeline": "Timeline",
+  "/dashboard/newsletter": "Newsletter",
+  "/dashboard/faq": "FAQ / Knowledge Base",
+  "/dashboard/products": "Productos",
+  "/dashboard/stock": "Stock",
+  "/dashboard/suppliers": "Proveedores",
   "/dashboard/settings/access": "Gestión de Acceso",
   "/dashboard/clients": "CRM Clientes",
   "/dashboard/invoices": "Facturas",
   "/dashboard/invoices/calendar": "Calendario Facturas",
   "/dashboard/invoices/new": "Nueva Factura",
-  "/dashboard/products": "Productos",
-  "/dashboard/stock": "Stock",
-  "/dashboard/suppliers": "Proveedores",
 }
 
-export function DashboardHeader({ user, isDemo = false }: { user: DemoUser; isDemo?: boolean }) {
+export function DashboardHeader({
+  user,
+  isDemo = false,
+  avatarUrl = null,
+  fullName = null,
+}: {
+  user: DemoUser
+  isDemo?: boolean
+  avatarUrl?: string | null
+  fullName?: string | null
+}) {
   const pathname = usePathname()
   const pageTitle = pathLabels[pathname] || "Dashboard"
   const { theme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
+  const [demoAvatar, setDemoAvatar] = useState<string | null>(null)
 
   useEffect(() => {
     setMounted(true)
-  }, [])
+    if (isDemo) {
+      try {
+        const stored = localStorage.getItem("endurancelab_demo_avatar")
+        if (stored) setDemoAvatar(stored)
+      } catch {}
+    }
+  }, [isDemo])
+
+  const effectiveAvatar = isDemo ? demoAvatar : avatarUrl
+  const effectiveName = fullName || user.user_metadata?.full_name || null
 
   return (
     <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80">
@@ -77,15 +102,23 @@ export function DashboardHeader({ user, isDemo = false }: { user: DemoUser; isDe
           </div>
         )}
         {isDemo && (
-          <>
-            <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20">
-              Modo Demo
-            </Badge>
-            <Button size="sm" asChild>
-              <Link href="/auth/login">Iniciar Sesión</Link>
-            </Button>
-          </>
+          <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20">
+            Modo Demo
+          </Badge>
         )}
+        {isDemo && (
+          <Button size="sm" asChild>
+            <Link href="/auth/login">Iniciar Sesión</Link>
+          </Button>
+        )}
+        <CurrencySelector />
+        <NotificationsBell isDemo={isDemo} />
+        <ProfileMenu
+          email={user.email}
+          fullName={effectiveName}
+          avatarUrl={effectiveAvatar}
+          isDemo={isDemo}
+        />
       </div>
     </header>
   )

@@ -13,6 +13,8 @@ export default async function DashboardLayout({
   let isDemo = false
   let role: Role = "admin"
   let permissions: UserPermission[] = []
+  let avatarUrl: string | null = null
+  let fullName: string | null = null
 
   try {
     const supabase = await createClient()
@@ -36,6 +38,8 @@ export default async function DashboardLayout({
         })
       } else {
         role = (profile.role || "admin") as Role
+        avatarUrl = profile.avatar_url || null
+        fullName = profile.full_name || null
       }
 
       // Fetch user permissions
@@ -69,11 +73,20 @@ export default async function DashboardLayout({
     user_metadata: { full_name: "Usuario Demo" }
   }
 
+  const headerUser = user
+    ? { id: user.id, email: user.email || "", user_metadata: { full_name: (user.user_metadata?.full_name as string | undefined) ?? undefined } }
+    : demoUser
+
   return (
     <SidebarProvider>
-      <DashboardSidebar user={user || demoUser} isDemo={isDemo} role={role} permissions={permissions} />
+      <DashboardSidebar user={headerUser} isDemo={isDemo} role={role} permissions={permissions} />
       <SidebarInset>
-        <DashboardHeader user={user || demoUser} isDemo={isDemo} />
+        <DashboardHeader
+          user={headerUser}
+          isDemo={isDemo}
+          avatarUrl={avatarUrl}
+          fullName={fullName ?? demoUser.user_metadata.full_name}
+        />
         <main className="flex-1 p-6">
           {children}
         </main>

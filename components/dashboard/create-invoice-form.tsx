@@ -484,6 +484,7 @@ export function CreateInvoiceForm({
                     value={line.unit_price || ""}
                     onChange={(e) => updateLine(index, "unit_price", e.target.value)}
                     min="0"
+                    step="0.01"
                     className="text-sm"
                   />
                 </div>
