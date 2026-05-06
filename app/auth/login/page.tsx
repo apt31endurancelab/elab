@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
+import Image from "next/image"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -88,17 +89,29 @@ export default function LoginPage() {
   return (
     <div ref={rootRef} className="relative min-h-screen w-full overflow-hidden bg-[#1a0a0a] text-white antialiased">
       <div className="absolute inset-0 overflow-hidden">
-        <img
+        <Image
           src="/images/login-bg-track.png"
           alt=""
           aria-hidden="true"
-          className="kenburns absolute inset-0 h-full w-full object-cover"
+          fill
+          priority
+          sizes="100vw"
+          className="kenburns hi-render object-cover"
         />
       </div>
 
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_120%_85%_at_28%_55%,transparent_0%,rgba(0,0,0,0.6)_80%)]" />
       <div className="absolute inset-0 bg-gradient-to-r from-black/45 via-transparent to-black/65" />
       <div className="absolute inset-0 bg-gradient-to-b from-black/35 via-transparent to-black/55" />
+
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 mix-blend-overlay opacity-[0.05]"
+        style={{
+          backgroundImage:
+            "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>\")",
+        }}
+      />
 
       <div aria-hidden="true" className="cursor-glow pointer-events-none absolute inset-0" />
 
@@ -121,6 +134,42 @@ export default function LoginPage() {
         <p className="breathe mt-1 text-[10px] font-medium tracking-[0.34em] text-white/65">
           LACTATE ANALYZER
         </p>
+
+        <div className="mt-3 w-[195px] sm:w-[215px]">
+          <div className="flex items-center justify-between text-[8px] font-mono tracking-[0.26em] text-white/35">
+            <span>BPM · 142</span>
+            <span>LANE 04 / 08</span>
+          </div>
+          <svg
+            viewBox="0 0 240 28"
+            preserveAspectRatio="none"
+            className="mt-1 h-3.5 w-full text-white/22"
+            aria-hidden="true"
+          >
+            <defs>
+              <filter id="ecg-glow" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur stdDeviation="1.4" result="b" />
+                <feMerge>
+                  <feMergeNode in="b" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+            </defs>
+            <path
+              id="ecg-path"
+              d="M 0 14 H 36 L 39 11 L 42 10 L 45 11 L 48 14 H 72 L 74 17 L 77 4 L 80 24 L 83 12 H 132 L 135 11 L 138 10 L 141 11 L 144 14 H 168 L 170 17 L 173 4 L 176 24 L 179 12 H 240"
+              stroke="currentColor"
+              strokeWidth="0.9"
+              fill="none"
+              vectorEffect="non-scaling-stroke"
+            />
+            <circle r="1.4" fill="white" fillOpacity="0.85" filter="url(#ecg-glow)">
+              <animateMotion dur="5.2s" repeatCount="indefinite">
+                <mpath href="#ecg-path" />
+              </animateMotion>
+            </circle>
+          </svg>
+        </div>
       </header>
 
       <div
@@ -154,53 +203,70 @@ export default function LoginPage() {
         >
           <div ref={cardRef} className="card-tilt relative">
             <div className="card-glow pointer-events-none absolute -inset-px rounded-3xl" />
-            <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-white/[0.04] shadow-[0_40px_90px_-30px_rgba(0,0,0,0.7)] backdrop-blur-xl">
-              <div className="px-7 pt-5">
-                <div className="flex items-center justify-between text-[9px] font-mono tracking-[0.28em] text-white/35">
-                  <span>BPM · 142</span>
-                  <span>LANE 04 / 08</span>
-                </div>
-                <svg
-                  viewBox="0 0 240 28"
-                  preserveAspectRatio="none"
-                  className="mt-2 h-4 w-full text-white/25"
-                >
-                  <defs>
-                    <filter id="ecg-glow" x="-50%" y="-50%" width="200%" height="200%">
-                      <feGaussianBlur stdDeviation="1.4" result="b" />
-                      <feMerge>
-                        <feMergeNode in="b" />
-                        <feMergeNode in="SourceGraphic" />
-                      </feMerge>
-                    </filter>
-                  </defs>
-                  <path
-                    id="ecg-path"
-                    d="M 0 14 H 36 L 39 11 L 42 10 L 45 11 L 48 14 H 72 L 74 17 L 77 4 L 80 24 L 83 12 H 132 L 135 11 L 138 10 L 141 11 L 144 14 H 168 L 170 17 L 173 4 L 176 24 L 179 12 H 240"
-                    stroke="currentColor"
-                    strokeWidth="0.9"
-                    fill="none"
-                    vectorEffect="non-scaling-stroke"
-                  />
-                  <circle r="1.5" fill="white" fillOpacity="0.85" filter="url(#ecg-glow)">
-                    <animateMotion dur="5.2s" repeatCount="indefinite" rotate="auto">
-                      <mpath href="#ecg-path" />
-                    </animateMotion>
-                  </circle>
-                </svg>
-              </div>
+            <div className="relative overflow-hidden rounded-3xl border border-white/[0.06] bg-white/[0.025] shadow-[0_30px_70px_-30px_rgba(0,0,0,0.5)] backdrop-blur-md">
+              <div className="px-7 pt-10 pb-8 sm:px-8">
+                <div className="flex flex-col items-center text-center">
+                  <p className="flex items-center gap-2 text-[26px] leading-none text-white sm:gap-2.5 sm:text-[31px]">
+                    <svg
+                      viewBox="0 0 32 22"
+                      className="h-[1em] w-auto flex-none"
+                      aria-hidden="true"
+                    >
+                      <g fill="white">
+                        <rect x="2" y="4.8" height="1.3" rx="0.65" width="6">
+                          <animate attributeName="width" values="4;7.5;4" dur="5.5s" repeatCount="indefinite"
+                            calcMode="spline" keyTimes="0;0.5;1"
+                            keySplines="0.4 0 0.6 1; 0.4 0 0.6 1" />
+                          <animate attributeName="opacity" values="0.45;0.8;0.45" dur="5.5s" repeatCount="indefinite" />
+                        </rect>
+                        <rect x="0" y="10.35" height="1.3" rx="0.65" width="9">
+                          <animate attributeName="width" values="8;11;8" dur="7s" repeatCount="indefinite"
+                            calcMode="spline" keyTimes="0;0.5;1"
+                            keySplines="0.4 0 0.6 1; 0.4 0 0.6 1" />
+                          <animate attributeName="opacity" values="0.65;0.95;0.65" dur="7s" repeatCount="indefinite" />
+                        </rect>
+                        <rect x="3" y="15.9" height="1.3" rx="0.65" width="5">
+                          <animate attributeName="width" values="3;5.5;3" dur="6.5s" repeatCount="indefinite"
+                            calcMode="spline" keyTimes="0;0.5;1"
+                            keySplines="0.4 0 0.6 1; 0.4 0 0.6 1" />
+                          <animate attributeName="opacity" values="0.35;0.7;0.35" dur="6.5s" repeatCount="indefinite" />
+                        </rect>
+                      </g>
 
-              <div className="px-7 pt-3 pb-7">
-                <div className="space-y-1.5">
-                  <h1 className="text-[26px] font-semibold leading-tight tracking-tight text-white">
-                    Bienvenido de nuevo
-                  </h1>
-                  <p className="text-[13px] leading-relaxed text-white/55">
-                    Accede con magic link para entrar al panel.
+                      <path
+                        d="M 32 11 a 10 10 0 1 0 -20 0 a 10 10 0 1 0 20 0 M 28.5 11 a 6.5 6.5 0 1 1 -13 0 a 6.5 6.5 0 1 1 13 0"
+                        fill="white"
+                        fillRule="evenodd"
+                      />
+
+                      <g transform="translate(22 11)">
+                        <g>
+                          <polygon points="-0.55,-1.7 0.55,-1.7 1.2,-6.1 -1.2,-6.1" fill="white" />
+                          <polygon points="-0.55,-1.7 0.55,-1.7 1.2,-6.1 -1.2,-6.1" fill="white" transform="rotate(72)" />
+                          <polygon points="-0.55,-1.7 0.55,-1.7 1.2,-6.1 -1.2,-6.1" fill="white" transform="rotate(144)" />
+                          <polygon points="-0.55,-1.7 0.55,-1.7 1.2,-6.1 -1.2,-6.1" fill="white" transform="rotate(216)" />
+                          <polygon points="-0.55,-1.7 0.55,-1.7 1.2,-6.1 -1.2,-6.1" fill="white" transform="rotate(288)" />
+                          <animateTransform attributeName="transform" type="rotate" from="0 0 0" to="360 0 0" dur="3.5s" repeatCount="indefinite" />
+                        </g>
+                        <circle r="1.9" fill="white" />
+                      </g>
+                    </svg>
+                    <span
+                      className="inline-flex items-baseline font-light tracking-[-0.04em]"
+                      style={{ fontFamily: "var(--font-brand), system-ui, sans-serif" }}
+                    >
+                      <span className="hidden sm:inline">boxes</span>
+                      <span className="sm:hidden">bxs</span>
+                      <sup className="ml-[1px] text-[14px] font-light text-white/80 sm:text-[16px]">3</sup>
+                    </span>
+                  </p>
+
+                  <p className="mt-3 whitespace-nowrap text-[8.5px] uppercase tracking-[0.18em] text-white/45 sm:text-[9.5px] sm:tracking-[0.2em]">
+                    Operating system for endurance teams
                   </p>
                 </div>
 
-                <div className="my-6 h-px w-full bg-gradient-to-r from-transparent via-white/15 to-transparent" />
+                <div className="my-7 h-px w-full bg-gradient-to-r from-transparent via-white/15 to-transparent" />
 
                 {!isSent ? (
                   <form onSubmit={handleMagicLink} className="space-y-4">
@@ -288,6 +354,13 @@ export default function LoginPage() {
           animation: kenburns 42s ease-in-out infinite alternate;
           transform-origin: 50% 55%;
           will-change: transform;
+          filter: contrast(1.05) saturate(1.06);
+        }
+
+        .hi-render {
+          image-rendering: -webkit-optimize-contrast;
+          image-rendering: high-quality;
+          backface-visibility: hidden;
         }
         @keyframes kenburns {
           0% {
@@ -387,11 +460,11 @@ export default function LoginPage() {
         .card-glow {
           background: radial-gradient(
             120% 60% at 50% 0%,
-            rgba(255, 255, 255, 0.18) 0%,
-            rgba(255, 255, 255, 0.04) 35%,
+            rgba(255, 255, 255, 0.1) 0%,
+            rgba(255, 255, 255, 0.025) 35%,
             transparent 70%
           );
-          opacity: 0.7;
+          opacity: 0.45;
         }
 
         @media (prefers-reduced-motion: reduce) {
