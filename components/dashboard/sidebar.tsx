@@ -31,6 +31,8 @@ import {
   CalendarDays,
   Shield,
   Activity,
+  Mail,
+  HelpCircle,
   Package,
   Boxes,
   Truck,
@@ -91,6 +93,13 @@ const navItems = [
       { title: "Gestionar Afiliados", href: "/dashboard/affiliates", icon: Users, sectionKey: "affiliates" as SectionKey },
       { title: "Enlaces y Códigos", href: "/dashboard/affiliates/links", icon: Link2, sectionKey: "affiliates/links" as SectionKey },
       { title: "Comisiones", href: "/dashboard/affiliates/commissions", icon: DollarSign, sectionKey: "affiliates/commissions" as SectionKey },
+    ],
+  },
+  {
+    title: "Marketing & Conocimiento",
+    items: [
+      { title: "Newsletter", href: "/dashboard/newsletter", icon: Mail, sectionKey: "newsletter" as SectionKey },
+      { title: "FAQ", href: "/dashboard/faq", icon: HelpCircle, sectionKey: "faq" as SectionKey },
     ],
   },
 ]

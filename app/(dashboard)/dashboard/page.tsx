@@ -1,104 +1,140 @@
 import { createClient } from "@/lib/supabase/server"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { DollarSign, Users, TrendingUp, CheckSquare } from "lucide-react"
-import { DashboardCharts } from "@/components/dashboard/charts"
-import { demoStats, demoSales, demoAffiliates } from "@/lib/demo-data"
+import { CustomizableDashboard } from "@/components/dashboard/customizable-dashboard"
+import { demoStats, demoAffiliates, demoTasks, demoInvoices } from "@/lib/demo-data"
+import type { AgendaInvoice, AgendaTask } from "@/components/dashboard/upcoming-agenda"
+import type { RawSale } from "@/components/dashboard/charts"
 
-async function getStats() {
+type RecentTask = { id: string; title: string; status: string; due_date: string | null; assigned_to: string | null }
+type RecentInvoice = { id: string; invoice_number: string; client_name: string; total: number; status: string; issue_date: string }
+
+async function getDashboardData() {
   try {
     const supabase = await createClient()
-    
-    const { count: affiliatesCount } = await supabase
-      .from("affiliates")
-      .select("*", { count: "exact", head: true })
-      .eq("status", "active")
-    
-    const { count: tasksCount } = await supabase
-      .from("tasks")
-      .select("*", { count: "exact", head: true })
-      .eq("status", "pending")
-    
-    const { data: salesData } = await supabase
-      .from("affiliate_sales")
-      .select("sale_amount, commission_amount")
-    
-    const totalSales = salesData?.reduce((sum, sale) => sum + Number(sale.sale_amount), 0) || 0
-    const totalCommissions = salesData?.reduce((sum, sale) => sum + Number(sale.commission_amount), 0) || 0
+
+    const [
+      { count: affiliatesCount },
+      { count: tasksCount },
+      { data: salesData },
+      { data: affiliates },
+      { data: invoicesForAgenda },
+      { data: tasksForAgenda },
+      { data: recentTasks },
+      { data: recentInvoices },
+    ] = await Promise.all([
+      supabase.from("affiliates").select("*", { count: "exact", head: true }).eq("status", "active"),
+      supabase.from("tasks").select("*", { count: "exact", head: true }).eq("status", "pending"),
+      supabase.from("affiliate_sales").select("created_at, order_total, commission_amount").order("created_at", { ascending: true }),
+      supabase.from("affiliates").select("name, total_sales:order_total").limit(10),
+      supabase.from("invoices").select("id, client_id, invoice_number, type, status, issue_date, validity_days, total, is_recurring, recurring_frequency, clients(name)"),
+      supabase.from("tasks").select("id, title, description, status, priority, due_date, assigned_to").not("due_date", "is", null),
+      supabase.from("tasks").select("id, title, status, due_date, assigned_to").order("created_at", { ascending: false }).limit(8),
+      supabase.from("invoices").select("id, invoice_number, total, status, issue_date, clients(name)").order("created_at", { ascending: false }).limit(8),
+    ])
+
+    const totalSales = salesData?.reduce((s, x) => s + Number(x.order_total), 0) || 0
+    const totalCommissions = salesData?.reduce((s, x) => s + Number(x.commission_amount), 0) || 0
+
+    const rawSales: RawSale[] = (salesData || []).map(s => ({
+      created_at: s.created_at,
+      sale_amount: Number(s.order_total) || 0,
+      commission_amount: Number(s.commission_amount) || 0,
+    }))
+
+    const agendaInvoices: AgendaInvoice[] = (invoicesForAgenda || []).map((inv) => {
+      const client = inv.clients as unknown as { name: string } | null
+      return {
+        id: inv.id,
+        client_id: inv.client_id,
+        client_name: client?.name || "Cliente",
+        invoice_number: inv.invoice_number,
+        type: inv.type,
+        status: inv.status,
+        issue_date: inv.issue_date,
+        validity_days: inv.validity_days,
+        total: Number(inv.total),
+        is_recurring: inv.is_recurring,
+        recurring_frequency: inv.recurring_frequency,
+      }
+    })
+
+    const agendaTasks: AgendaTask[] = (tasksForAgenda || []).map(t => ({
+      id: t.id,
+      title: t.title,
+      description: t.description,
+      status: t.status,
+      priority: t.priority,
+      due_date: t.due_date,
+      assigned_to: t.assigned_to,
+    }))
+
+    const recentInvoicesMapped: RecentInvoice[] = (recentInvoices || []).map((inv) => {
+      const client = inv.clients as unknown as { name: string } | null
+      return {
+        id: inv.id,
+        invoice_number: inv.invoice_number,
+        client_name: client?.name || "Cliente",
+        total: Number(inv.total),
+        status: inv.status,
+        issue_date: inv.issue_date,
+      }
+    })
 
     return {
-      totalSales,
-      activeAffiliates: affiliatesCount || 0,
-      pendingCommissions: totalCommissions,
-      pendingTasks: tasksCount || 0,
+      stats: {
+        totalSales,
+        activeAffiliates: affiliatesCount || 0,
+        pendingCommissions: totalCommissions,
+        pendingTasks: tasksCount || 0,
+      },
+      rawSales,
+      affiliatesData: (affiliates || []).map(a => ({ name: a.name, total_sales: Number(a.total_sales) })),
+      agenda: { invoices: agendaInvoices, tasks: agendaTasks },
+      recentTasks: (recentTasks || []) as RecentTask[],
+      recentInvoices: recentInvoicesMapped,
       isDemo: false,
     }
   } catch {
     return {
-      ...demoStats,
+      stats: {
+        totalSales: demoStats.totalSales,
+        activeAffiliates: demoStats.activeAffiliates,
+        pendingCommissions: demoStats.pendingCommissions,
+        pendingTasks: demoStats.pendingTasks,
+      },
+      rawSales: undefined,
+      affiliatesData: demoAffiliates as unknown as { name: string; total_sales?: number; ventas?: number }[],
+      agenda: {
+        invoices: (demoInvoices as unknown as AgendaInvoice[]),
+        tasks: (demoTasks as AgendaTask[]).filter(t => t.due_date),
+      },
+      recentTasks: (demoTasks as RecentTask[]).slice(0, 8),
+      recentInvoices: (demoInvoices as unknown as RecentInvoice[]).slice(0, 8),
       isDemo: true,
     }
   }
 }
 
 export default async function DashboardPage() {
-  const stats = await getStats()
-
-  const statCards = [
-    {
-      title: "Ventas Totales",
-      value: `$${stats.totalSales.toLocaleString("es-ES", { minimumFractionDigits: 2 })}`,
-      description: "Ventas via afiliados",
-      icon: DollarSign,
-    },
-    {
-      title: "Afiliados Activos",
-      value: stats.activeAffiliates.toString(),
-      description: "Influencers registrados",
-      icon: Users,
-    },
-    {
-      title: "Comisiones Pendientes",
-      value: `$${stats.pendingCommissions.toLocaleString("es-ES", { minimumFractionDigits: 2 })}`,
-      description: "Por pagar",
-      icon: TrendingUp,
-    },
-    {
-      title: "Tareas Pendientes",
-      value: stats.pendingTasks.toString(),
-      description: "Por completar",
-      icon: CheckSquare,
-    },
-  ]
+  const data = await getDashboardData()
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
-        <p className="text-muted-foreground">
-          Resumen general de tu tienda Lactate Pro
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
+          <p className="text-muted-foreground">
+            Resumen general — arrastra los widgets para reordenarlos
+          </p>
+        </div>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {statCards.map((stat) => (
-          <Card key={stat.title}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
-              <stat.icon className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stat.value}</div>
-              <p className="text-xs text-muted-foreground">{stat.description}</p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {/* Charts */}
-      <DashboardCharts 
-        salesData={stats.isDemo ? demoSales : undefined} 
-        affiliatesData={stats.isDemo ? demoAffiliates : undefined}
+      <CustomizableDashboard
+        stats={data.stats}
+        rawSales={data.rawSales}
+        affiliatesData={data.affiliatesData}
+        agenda={data.agenda}
+        recentTasks={data.recentTasks}
+        recentInvoices={data.recentInvoices}
       />
     </div>
   )

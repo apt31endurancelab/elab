@@ -1,8 +1,10 @@
 import { createClient } from "@/lib/supabase/server"
 import { ActivityTimeline } from "@/components/dashboard/activity-timeline"
-import { demoActivityLog } from "@/lib/demo-data"
+import { demoActivityLog, demoInvoices, demoTasks } from "@/lib/demo-data"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
+import { UpcomingAgenda, type AgendaInvoice, type AgendaTask } from "@/components/dashboard/upcoming-agenda"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 
 interface ActivityLog {
   id: string
@@ -13,6 +15,55 @@ interface ActivityLog {
   entity_name: string | null
   metadata: Record<string, unknown>
   created_at: string
+}
+
+async function getAgendaData(): Promise<{ invoices: AgendaInvoice[]; tasks: AgendaTask[] }> {
+  try {
+    const supabase = await createClient()
+
+    const { data: invoices } = await supabase
+      .from("invoices")
+      .select("id, client_id, invoice_number, type, status, issue_date, validity_days, total, is_recurring, recurring_frequency, clients(name)")
+
+    const invoiceList: AgendaInvoice[] = (invoices || []).map((inv) => {
+      const client = inv.clients as unknown as { name: string } | null
+      return {
+        id: inv.id,
+        client_id: inv.client_id,
+        client_name: client?.name || "Cliente desconocido",
+        invoice_number: inv.invoice_number,
+        type: inv.type,
+        status: inv.status,
+        issue_date: inv.issue_date,
+        validity_days: inv.validity_days,
+        total: Number(inv.total),
+        is_recurring: inv.is_recurring,
+        recurring_frequency: inv.recurring_frequency,
+      }
+    })
+
+    const { data: tasks } = await supabase
+      .from("tasks")
+      .select("id, title, description, status, priority, due_date, assigned_to")
+      .not("due_date", "is", null)
+
+    const taskList: AgendaTask[] = (tasks || []).map(t => ({
+      id: t.id,
+      title: t.title,
+      description: t.description,
+      status: t.status,
+      priority: t.priority,
+      due_date: t.due_date,
+      assigned_to: t.assigned_to,
+    }))
+
+    return { invoices: invoiceList, tasks: taskList }
+  } catch {
+    return {
+      invoices: (demoInvoices as unknown as AgendaInvoice[]).map(i => ({ ...i, client_name: i.client_name || "" })),
+      tasks: (demoTasks as AgendaTask[]).filter(t => t.due_date),
+    }
+  }
 }
 
 async function getActivityData() {
@@ -61,14 +112,17 @@ async function getActivityData() {
 }
 
 export default async function TimelinePage() {
-  const { logs, isDemo, isSuperadmin, users } = await getActivityData()
+  const [{ logs, isDemo, isSuperadmin, users }, agenda] = await Promise.all([
+    getActivityData(),
+    getAgendaData(),
+  ])
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Timeline</h1>
         <p className="text-muted-foreground">
-          Actividad reciente en toda la plataforma
+          Lo que viene y lo que ya ha pasado, en una sola vista
         </p>
       </div>
 
@@ -82,12 +136,23 @@ export default async function TimelinePage() {
         </Alert>
       )}
 
-      <ActivityTimeline
-        logs={logs}
-        isDemo={isDemo}
-        isSuperadmin={isSuperadmin}
-        users={users}
-      />
+      <Tabs defaultValue="upcoming">
+        <TabsList>
+          <TabsTrigger value="upcoming">Próximamente</TabsTrigger>
+          <TabsTrigger value="history">Historial</TabsTrigger>
+        </TabsList>
+        <TabsContent value="upcoming" className="mt-4">
+          <UpcomingAgenda invoices={agenda.invoices} tasks={agenda.tasks} />
+        </TabsContent>
+        <TabsContent value="history" className="mt-4">
+          <ActivityTimeline
+            logs={logs}
+            isDemo={isDemo}
+            isSuperadmin={isSuperadmin}
+            users={users}
+          />
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

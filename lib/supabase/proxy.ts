@@ -52,7 +52,11 @@ export async function updateSession(request: NextRequest) {
   if (
     // if the user is not logged in and the dashboard is accessed, redirect to the login page
     request.nextUrl.pathname.startsWith('/dashboard') &&
-    !user
+    !user &&
+    // local dev escape hatch: skip the auth gate when running `next dev` so the dashboard
+    // is reachable without logging in. This branch is dropped in production builds because
+    // NODE_ENV is set to 'production' by `next build`.
+    process.env.NODE_ENV !== 'development'
   ) {
     // no user, redirect to the login page
     const url = request.nextUrl.clone()
