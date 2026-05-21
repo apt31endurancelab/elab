@@ -3,6 +3,8 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { sendEmail, emailIsConfigured } from "@/lib/email"
 import { sendSms, smsIsConfigured } from "@/lib/sms"
 
+const FEATURE_DISABLED = () => new NextResponse(null, { status: 404 })
+
 // Cron-friendly notification dispatcher.
 // Protect with a shared secret: set NOTIFICATIONS_CRON_SECRET in env, send as
 //   Authorization: Bearer <secret>
@@ -14,9 +16,11 @@ import { sendSms, smsIsConfigured } from "@/lib/sms"
 // the team grows beyond one inbox.
 
 export async function POST(request: Request) {
+  if (true) return FEATURE_DISABLED()
   return run(request)
 }
 export async function GET(request: Request) {
+  if (true) return FEATURE_DISABLED()
   return run(request)
 }
 

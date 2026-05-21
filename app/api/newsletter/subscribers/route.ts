@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 
+const FEATURE_DISABLED = () => new NextResponse(null, { status: 404 })
+
 export async function POST(request: Request) {
+  if (true) return FEATURE_DISABLED()
   const body = await request.json().catch(() => ({})) as {
     email?: string
     full_name?: string
@@ -29,6 +32,7 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  if (true) return FEATURE_DISABLED()
   const url = new URL(request.url)
   const id = url.searchParams.get("id")
   if (!id) return NextResponse.json({ error: "id requerido" }, { status: 400 })

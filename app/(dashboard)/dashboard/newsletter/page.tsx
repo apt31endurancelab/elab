@@ -1,3 +1,4 @@
+import { notFound } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { NewsletterWorkspace, type NewsletterSubscriber, type NewsletterCampaign } from "@/components/dashboard/newsletter-workspace"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -22,6 +23,7 @@ async function getData() {
 }
 
 export default async function NewsletterPage() {
+  notFound()
   const { subscribers, campaigns, hasMigration } = await getData()
 
   return (

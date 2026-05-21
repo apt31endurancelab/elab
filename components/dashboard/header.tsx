@@ -17,7 +17,6 @@ import { Switch } from "@/components/ui/switch"
 import { useTheme } from "next-themes"
 import { Moon, Sun } from "lucide-react"
 import { ProfileMenu } from "./profile-menu"
-import { NotificationsBell } from "./notifications-bell"
 import { CurrencySelector } from "./currency-selector"
 
 interface DemoUser {
@@ -112,7 +111,6 @@ export function DashboardHeader({
           </Button>
         )}
         <CurrencySelector />
-        <NotificationsBell isDemo={isDemo} />
         <ProfileMenu
           email={user.email}
           fullName={effectiveName}

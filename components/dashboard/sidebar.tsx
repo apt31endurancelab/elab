@@ -31,7 +31,6 @@ import {
   CalendarDays,
   Shield,
   Activity,
-  Mail,
   HelpCircle,
   Package,
   Boxes,
@@ -98,7 +97,6 @@ const navItems = [
   {
     title: "Marketing & Conocimiento",
     items: [
-      { title: "Newsletter", href: "/dashboard/newsletter", icon: Mail, sectionKey: "newsletter" as SectionKey },
       { title: "FAQ", href: "/dashboard/faq", icon: HelpCircle, sectionKey: "faq" as SectionKey },
     ],
   },

@@ -2,11 +2,14 @@ import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { sendEmail } from "@/lib/email"
 
+const FEATURE_DISABLED = () => new NextResponse(null, { status: 404 })
+
 // POST /api/newsletter/send
 // Body: { subject: string; body: string; segments?: string[]; test_email?: string }
 // If test_email is provided, sends a single test message and does not record a campaign.
 
 export async function POST(request: Request) {
+  if (true) return FEATURE_DISABLED()
   const body = await request.json().catch(() => ({})) as {
     subject?: string
     body?: string

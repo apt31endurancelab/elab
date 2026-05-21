@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 
+const FEATURE_DISABLED = () => new NextResponse(null, { status: 404 })
+
 type AlertItem = {
   id: string
   level: "critical" | "warning" | "info"
@@ -12,6 +14,7 @@ type AlertItem = {
 }
 
 export async function GET() {
+  if (true) return FEATURE_DISABLED()
   let supabase
   try {
     supabase = await createClient()
