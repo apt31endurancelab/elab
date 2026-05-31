@@ -50,7 +50,7 @@ async function shopifyAdminFetch<T>(query: string, variables?: Record<string, un
   }
 
   try {
-    const response = await fetch(`https://${creds.domain}/admin/api/2024-10/graphql.json`, {
+    const response = await fetch(`https://${creds.domain}/admin/api/2025-10/graphql.json`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

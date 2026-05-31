@@ -1,0 +1,19 @@
+# Shopify app config for "elab" — drives the Endurance Lab panel data sync.
+# Managed via `shopify app deploy`.
+client_id = "0214441491a38ddaef3f98fba4ae2507"
+name = "elab"
+application_url = "http://localhost:3001"
+embedded = false
+
+[access_scopes]
+scopes = "read_orders,read_products,read_customers,write_products,write_discounts"
+use_legacy_install_flow = true
+
+[auth]
+redirect_urls = [
+  "http://localhost:3001/api/shopify/callback",
+  "https://office.endurancelab.cc/api/shopify/callback"
+]
+
+[webhooks]
+api_version = "2025-10"

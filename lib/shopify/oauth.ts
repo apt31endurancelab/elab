@@ -6,7 +6,7 @@ import crypto from "crypto"
 //   SHOPIFY_APP_URL        - public base URL of this app (e.g. https://app.endurancelab.cc)
 //   SHOPIFY_API_SCOPES     - comma-separated, e.g. read_orders,read_products,read_customers,read_analytics
 
-export const SHOPIFY_API_VERSION = "2024-10"
+export const SHOPIFY_API_VERSION = "2025-10"
 
 export const SHOPIFY_DEFAULT_SCOPES = [
   "read_orders",
@@ -54,7 +54,8 @@ export function buildAuthorizeUrl(shop: string, state: string): string {
     scope: cfg.scopes.join(","),
     redirect_uri: `${cfg.appUrl}/api/shopify/callback`,
     state,
-    "grant_options[]": "per-user",
+    // omit grant_options[]=per-user → Shopify issues an OFFLINE (permanent) token,
+    // which is what a background data-sync panel needs.
   })
   return `https://${shop}/admin/oauth/authorize?${params.toString()}`
 }
