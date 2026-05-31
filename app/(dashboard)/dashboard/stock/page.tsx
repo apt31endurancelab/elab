@@ -15,13 +15,25 @@ import { AlertCircle, AlertTriangle, Boxes, DollarSign, Package } from "lucide-r
 import { isLowStock, marginPercent, STOCK_REASON_LABELS, type Product, type StockMovement } from "@/lib/inventory"
 import { Money } from "@/components/money"
 import { cn } from "@/lib/utils"
+import { getGlobalRange } from "@/lib/date-range"
+import type { ResolvedRange } from "@/lib/shopify/analytics"
 
-async function getData() {
+async function getData(range: ResolvedRange | null) {
   try {
     const supabase = await createClient()
+    let movementsQuery = supabase
+      .from("stock_movements")
+      .select("*, product:products(name, sku)")
+      .order("created_at", { ascending: false })
+      .limit(100)
+    if (range) {
+      movementsQuery = movementsQuery
+        .gte("created_at", range.from.toISOString())
+        .lte("created_at", range.to.toISOString())
+    }
     const [{ data: products }, { data: movements }] = await Promise.all([
       supabase.from("products").select("*").eq("is_active", true).order("stock", { ascending: true }),
-      supabase.from("stock_movements").select("*, product:products(name, sku)").order("created_at", { ascending: false }).limit(40),
+      movementsQuery,
     ])
     return {
       products: (products || []) as Product[],
@@ -38,7 +50,8 @@ async function getData() {
 }
 
 export default async function StockPage() {
-  const { products, movements, hasMigration } = await getData()
+  const { range } = await getGlobalRange()
+  const { products, movements, hasMigration } = await getData(range)
 
   const lowStock = products.filter(p => isLowStock(p))
   const outOfStock = products.filter(p => p.stock <= 0)
@@ -169,8 +182,8 @@ export default async function StockPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Movimientos recientes</CardTitle>
-          <CardDescription>Últimas 40 entradas/salidas</CardDescription>
+          <CardTitle className="text-base">Movimientos de stock</CardTitle>
+          <CardDescription>{range ? range.label : "Todo el histórico"} · {movements.length} movimiento(s)</CardDescription>
         </CardHeader>
         <CardContent>
           {movements.length === 0 ? (

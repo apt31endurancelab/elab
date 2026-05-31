@@ -1,5 +1,6 @@
 import { getShopifyShopInfo } from "@/lib/shopify"
-import { getStoreAnalytics, getSalesForRange, resolveRange, previousRange, type SalesSummary } from "@/lib/shopify/analytics"
+import { getStoreAnalytics, getSalesForRange, previousRange, type SalesSummary } from "@/lib/shopify/analytics"
+import { getGlobalRange } from "@/lib/date-range"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -26,16 +27,12 @@ import {
 } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { ShopifyCustomersManager } from "@/components/dashboard/shopify-customers-manager"
-import { AnalyticsRangePicker } from "@/components/dashboard/analytics-range-picker"
 import type { ComponentType } from "react"
 
 export const dynamic = "force-dynamic"
 
-export default async function ShopifyPage({ searchParams }: { searchParams: Promise<{ range?: string; compare?: string }> }) {
-  const sp = await searchParams
-  const rangePreset = sp.range || "30d"
-  const compare = sp.compare === "1"
-  const range = resolveRange(rangePreset, new Date())
+export default async function ShopifyPage() {
+  const { compare, range } = await getGlobalRange()
 
   const [a, shopInfo, prevSales] = await Promise.all([
     getStoreAnalytics(range),
@@ -116,13 +113,10 @@ export default async function ShopifyPage({ searchParams }: { searchParams: Prom
       </div>
 
       {!isDemo && (
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <AnalyticsRangePicker range={rangePreset} compare={compare} />
-          <p className="text-xs text-muted-foreground">
-            Ventas y pedidos: <strong>{a.range?.label ?? "Todo"}</strong>
-            {compare && " · comparado con el periodo anterior"}
-          </p>
-        </div>
+        <p className="text-xs text-muted-foreground">
+          Ventas y pedidos: <strong>{a.range?.label ?? "Todo el histórico"}</strong>
+          {compare && " · comparado con el periodo anterior"} · cambia el rango en la barra superior.
+        </p>
       )}
 
       {isDemo && (

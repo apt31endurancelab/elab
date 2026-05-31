@@ -18,6 +18,7 @@ import { useTheme } from "next-themes"
 import { Moon, Sun } from "lucide-react"
 import { ProfileMenu } from "./profile-menu"
 import { CurrencySelector } from "./currency-selector"
+import { GlobalDateFilter } from "./global-date-filter"
 
 interface DemoUser {
   id: string
@@ -89,6 +90,7 @@ export function DashboardHeader({
       </Breadcrumb>
       
       <div className="ml-auto flex items-center gap-3">
+        <GlobalDateFilter />
         {mounted && (
           <div className="flex items-center gap-2">
             <Sun className="h-4 w-4 text-muted-foreground" />
