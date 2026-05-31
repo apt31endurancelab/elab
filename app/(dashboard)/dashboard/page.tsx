@@ -1,8 +1,33 @@
+import Link from "next/link"
 import { createClient } from "@/lib/supabase/server"
 import { CustomizableDashboard } from "@/components/dashboard/customizable-dashboard"
 import { demoStats, demoAffiliates, demoTasks, demoInvoices } from "@/lib/demo-data"
 import type { AgendaInvoice, AgendaTask } from "@/components/dashboard/upcoming-agenda"
 import type { RawSale } from "@/components/dashboard/charts"
+import { getStoreAnalytics } from "@/lib/shopify/analytics"
+import { getShopifyShopInfo } from "@/lib/shopify"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { DollarSign, ShoppingBag, Users, Boxes, ArrowRight } from "lucide-react"
+
+async function getShopifyKpis() {
+  try {
+    const [a, shopInfo] = await Promise.all([getStoreAnalytics(), getShopifyShopInfo()])
+    if (!shopInfo?.shop) return null
+    const currency = shopInfo.shop.currencyCode || a.currency
+    const money = (n: number) => {
+      try { return new Intl.NumberFormat("es-CL", { style: "currency", currency, maximumFractionDigits: 0 }).format(n) }
+      catch { return `$${Math.round(n).toLocaleString("es-CL")}` }
+    }
+    return [
+      { title: "Ingresos Shopify", value: money(a.sales.totalSales), icon: DollarSign },
+      { title: "Pedidos", value: a.sales.ordersCount.toLocaleString("es-CL"), icon: ShoppingBag },
+      { title: "Clientes", value: a.customers.total.toLocaleString("es-CL"), icon: Users },
+      { title: "Stock", value: a.inventory.totalStock.toLocaleString("es-CL"), icon: Boxes },
+    ]
+  } catch {
+    return null
+  }
+}
 
 type RecentTask = { id: string; title: string; status: string; due_date: string | null; assigned_to: string | null }
 type RecentInvoice = { id: string; invoice_number: string; client_name: string; total: number; status: string; issue_date: string }
@@ -115,7 +140,7 @@ async function getDashboardData() {
 }
 
 export default async function DashboardPage() {
-  const data = await getDashboardData()
+  const [data, shopifyKpis] = await Promise.all([getDashboardData(), getShopifyKpis()])
 
   return (
     <div className="space-y-6">
@@ -127,6 +152,30 @@ export default async function DashboardPage() {
           </p>
         </div>
       </div>
+
+      {shopifyKpis && (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-medium text-muted-foreground">Tu tienda Shopify</h2>
+            <Link href="/dashboard/shopify" className="flex items-center gap-1 text-sm text-primary hover:underline">
+              Ver analítica <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {shopifyKpis.map((kpi) => (
+              <Card key={kpi.title}>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">{kpi.title}</CardTitle>
+                  <kpi.icon className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{kpi.value}</div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
 
       <CustomizableDashboard
         stats={data.stats}
