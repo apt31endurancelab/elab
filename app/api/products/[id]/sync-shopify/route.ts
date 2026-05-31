@@ -26,7 +26,17 @@ export async function POST(
     return NextResponse.json({ error: "Sin conexión activa a Shopify. Conecta primero en Ajustes." }, { status: 400 })
   }
 
-  const result = await pushProductToShopify(connection.shop_domain, connection.access_token, product as Product)
+  // The primary supplier's name becomes the Shopify "vendor" field.
+  const { data: primary } = await admin
+    .from("product_suppliers")
+    .select("suppliers(name)")
+    .eq("product_id", id)
+    .eq("is_primary", true)
+    .limit(1)
+    .maybeSingle()
+  const vendor = (primary?.suppliers as unknown as { name: string } | null)?.name ?? null
+
+  const result = await pushProductToShopify(connection.shop_domain, connection.access_token, { ...(product as Product), vendor })
 
   if (!result.ok) {
     await admin

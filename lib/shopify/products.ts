@@ -4,6 +4,10 @@
 import { adminFetch } from "./oauth"
 import type { Product } from "@/lib/inventory"
 
+// The Shopify "vendor" field maps to the product's primary supplier name, which the
+// sync routes look up and attach before pushing.
+type ProductWithVendor = Product & { vendor?: string | null }
+
 type CreatedShopifyProduct = {
   id: string
   variants: { edges: { node: { id: string; inventoryItem: { id: string } } }[] }
@@ -70,11 +74,12 @@ export type SyncProductResult = {
 }
 
 // 2025-10 ProductInput no longer accepts variants inline — only product-level fields.
-function buildProductInput(p: Product): Record<string, unknown> {
+function buildProductInput(p: ProductWithVendor): Record<string, unknown> {
   return {
     title: p.name,
     descriptionHtml: p.description ? p.description.replace(/\n/g, "<br>") : undefined,
     productType: p.category || undefined,
+    vendor: p.vendor || undefined,
     status: p.is_active ? "ACTIVE" : "DRAFT",
   }
 }
@@ -96,7 +101,7 @@ async function getPrimaryLocationId(shop: string, token: string): Promise<string
   return primary?.id || null
 }
 
-export async function pushProductToShopify(shop: string, token: string, product: Product): Promise<SyncProductResult> {
+export async function pushProductToShopify(shop: string, token: string, product: ProductWithVendor): Promise<SyncProductResult> {
   const baseInput = buildProductInput(product)
   let shopifyProductId = product.shopify_product_id
   let shopifyVariantId = product.shopify_variant_id
@@ -211,6 +216,7 @@ const PULL_PRODUCTS_QUERY = `
           id
           title
           status
+          vendor
           totalInventory
           variants(first: 1) {
             edges { node { id sku price barcode inventoryItem { id } inventoryQuantity } }
@@ -226,6 +232,7 @@ export type PulledProduct = {
   shopify_variant_id: string | null
   shopify_inventory_item_id: string | null
   title: string
+  vendor: string | null
   sku: string | null
   price: number | null
   barcode: string | null
@@ -241,7 +248,7 @@ export async function pullShopifyProducts(shop: string, token: string): Promise<
       products: {
         pageInfo: { hasNextPage: boolean; endCursor: string | null }
         edges: { node: {
-          id: string; title: string; status: string; totalInventory: number;
+          id: string; title: string; status: string; vendor: string | null; totalInventory: number;
           variants: { edges: { node: { id: string; sku: string | null; price: string; barcode: string | null; inventoryItem: { id: string }; inventoryQuantity: number } }[] }
         } }[]
       }
@@ -254,6 +261,7 @@ export async function pullShopifyProducts(shop: string, token: string): Promise<
         shopify_variant_id: variant?.id || null,
         shopify_inventory_item_id: variant?.inventoryItem.id || null,
         title: edge.node.title,
+        vendor: edge.node.vendor || null,
         sku: variant?.sku || null,
         price: variant?.price ? Number(variant.price) : null,
         barcode: variant?.barcode || null,

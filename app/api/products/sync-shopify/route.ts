@@ -43,6 +43,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, created: 0, updated: 0, failed: 0 })
   }
 
+  // Map each product to its primary supplier name (-> Shopify vendor field).
+  const { data: primaries } = await admin
+    .from("product_suppliers")
+    .select("product_id, suppliers(name)")
+    .eq("is_primary", true)
+  const vendorByProduct = new Map(
+    (primaries || []).map(r => [r.product_id as string, (r.suppliers as unknown as { name: string } | null)?.name || null]),
+  )
+
   let created = 0
   let updated = 0
   let failed = 0
@@ -50,7 +59,7 @@ export async function POST(request: Request) {
 
   for (const p of products as Product[]) {
     const wasNew = !p.shopify_product_id
-    const result = await pushProductToShopify(connection.shop_domain, connection.access_token, p)
+    const result = await pushProductToShopify(connection.shop_domain, connection.access_token, { ...p, vendor: vendorByProduct.get(p.id) ?? null })
     if (!result.ok) {
       failed += 1
       errors.push({ id: p.id, error: result.error || "unknown" })

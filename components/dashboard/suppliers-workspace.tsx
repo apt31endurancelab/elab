@@ -21,7 +21,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Plus, Search, MoreHorizontal, Truck, Pencil, Trash2, Mail, Phone, Globe } from "lucide-react"
+import { Plus, Search, MoreHorizontal, Truck, Pencil, Trash2, Mail, Phone, Globe, DownloadCloud } from "lucide-react"
+import { toast } from "sonner"
 import { SupplierDialog } from "./supplier-dialog"
 import type { Supplier } from "@/lib/inventory"
 
@@ -47,6 +48,25 @@ export function SuppliersWorkspace({ suppliers }: { suppliers: SupplierWithStats
     )
   }, [suppliers, search])
 
+  const [importing, setImporting] = useState(false)
+  const importFromShopify = async () => {
+    setImporting(true)
+    try {
+      const res = await fetch("/api/suppliers/import-shopify", { method: "POST" })
+      const data = await res.json()
+      if (!res.ok) {
+        toast.error(`Error: ${data.error || res.status}`)
+      } else {
+        toast.success(`Shopify: ${data.suppliersCreated} proveedor(es) nuevo(s), ${data.productsLinked} producto(s) enlazado(s)`)
+        router.refresh()
+      }
+    } catch (e) {
+      toast.error(`Error: ${(e as Error).message}`)
+    } finally {
+      setImporting(false)
+    }
+  }
+
   const openNew = () => { setEditing(null); setDialogOpen(true) }
   const openEdit = (s: Supplier) => { setEditing(s); setDialogOpen(true) }
   const remove = async (id: string) => {
@@ -64,10 +84,16 @@ export function SuppliersWorkspace({ suppliers }: { suppliers: SupplierWithStats
           <CardTitle className="text-base font-medium">Proveedores</CardTitle>
           <CardDescription>{totalActive} activos · {suppliers.length} en total</CardDescription>
         </div>
-        <Button size="sm" onClick={openNew}>
-          <Plus className="h-4 w-4 mr-1" />
-          Nuevo proveedor
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" onClick={importFromShopify} disabled={importing}>
+            <DownloadCloud className="h-4 w-4 mr-1" />
+            {importing ? "Importando..." : "Importar de Shopify"}
+          </Button>
+          <Button size="sm" onClick={openNew}>
+            <Plus className="h-4 w-4 mr-1" />
+            Nuevo proveedor
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="relative">
