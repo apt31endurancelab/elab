@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { createClient } from "@/lib/supabase/server"
 import { pullShopifyProducts } from "@/lib/shopify/products"
 
 // Import Shopify product "vendor" values as local suppliers and link each product
@@ -18,7 +19,13 @@ export async function POST() {
 
   if (!connection) return NextResponse.json({ error: "Sin conexión activa a Shopify" }, { status: 400 })
 
-  let ownerId: string | null = connection.user_id
+  let ownerId: string | null = null
+  try {
+    const supa = await createClient()
+    const { data: { user } } = await supa.auth.getUser()
+    ownerId = user?.id ?? null
+  } catch { /* ignore */ }
+  if (!ownerId) ownerId = connection.user_id
   if (!ownerId) {
     const { data: admins } = await admin.from("profiles").select("id").eq("role", "superadmin").limit(1)
     ownerId = admins?.[0]?.id ?? null

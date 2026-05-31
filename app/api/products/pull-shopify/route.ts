@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { createClient } from "@/lib/supabase/server"
 import { pullShopifyProducts } from "@/lib/shopify/products"
 import { getShopifyShopInfo } from "@/lib/shopify"
 
@@ -28,9 +29,15 @@ export async function POST() {
   ])
   const currency = shopInfo?.shop?.currencyCode || "USD"
 
-  // Products require an owner user_id. Prefer the connection's user, otherwise
-  // fall back to a superadmin so imported products still land in the catalog.
-  let ownerId: string | null = connection.user_id
+  // Products require an owner user_id. Prefer the user doing the sync (so it shows
+  // up in their catalog), then the connection's user, then any superadmin.
+  let ownerId: string | null = null
+  try {
+    const supa = await createClient()
+    const { data: { user } } = await supa.auth.getUser()
+    ownerId = user?.id ?? null
+  } catch { /* ignore */ }
+  if (!ownerId) ownerId = connection.user_id
   if (!ownerId) {
     const { data: admins } = await admin
       .from("profiles")
