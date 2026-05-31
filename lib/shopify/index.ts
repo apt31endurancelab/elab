@@ -102,8 +102,8 @@ export async function getShopifyAnalytics() {
               firstName
               lastName
             }
-            fulfillmentStatus
-            financialStatus
+            fulfillmentStatus: displayFulfillmentStatus
+            financialStatus: displayFinancialStatus
           }
         }
         pageInfo {

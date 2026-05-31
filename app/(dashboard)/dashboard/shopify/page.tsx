@@ -220,26 +220,24 @@ const maxTraffic = Math.max(...trafficSourcesDemo.map((d) => d.sessions))
 const maxProductRevenue = Math.max(...topProductsDemo.map((d) => d.revenue))
 
 export default async function ShopifyPage() {
-  const hasShopifyConfig =
-    !!process.env.SHOPIFY_ADMIN_ACCESS_TOKEN &&
-    (!!process.env.SHOPIFY_STORE_DOMAIN || !!process.env.NEXT_PUBLIC_SHOPIFY_STORE_DOMAIN)
-  
+  // Credentials resolve from the OAuth connection in Supabase (or the env token as
+  // fallback), so we no longer gate on env vars. We just try to fetch and treat the
+  // store as live whenever Shopify returns shop info.
   let analytics = null
   let products = null
   let shopInfo = null
-  let isDemo = !hasShopifyConfig
-  
-  if (hasShopifyConfig) {
-    try {
-      [analytics, products, shopInfo] = await Promise.all([
-        getShopifyAnalytics(),
-        getShopifyProducts(),
-        getShopifyShopInfo(),
-      ])
-    } catch {
-      isDemo = true
-    }
+
+  try {
+    [analytics, products, shopInfo] = await Promise.all([
+      getShopifyAnalytics(),
+      getShopifyProducts(),
+      getShopifyShopInfo(),
+    ])
+  } catch {
+    // ignore — falls back to demo data below
   }
+
+  const isDemo = !shopInfo?.shop
 
   // Use demo data or real data
   const orders = isDemo 
@@ -344,8 +342,8 @@ export default async function ShopifyPage() {
           <FlaskConical className="h-4 w-4 text-amber-500" />
           <AlertTitle className="text-amber-600 dark:text-amber-400">Modo Demo</AlertTitle>
           <AlertDescription className="text-amber-600/80 dark:text-amber-400/80">
-            Estás viendo datos de demostración. Para conectar tu tienda Shopify, añade las variables de entorno 
-            SHOPIFY_ADMIN_ACCESS_TOKEN y SHOPIFY_STORE_DOMAIN en la sección Vars.
+            Estás viendo datos de demostración porque no se detectó una tienda Shopify conectada.
+            Conéctala desde Ajustes → Shopify para ver tus datos reales.
           </AlertDescription>
         </Alert>
       )}
@@ -373,6 +371,7 @@ export default async function ShopifyPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {isDemo && (
           <div className="space-y-4 rounded-lg border border-border/70 p-4">
             <div>
               <h3 className="text-sm font-semibold">Demo Analytics Playground</h3>
@@ -542,6 +541,7 @@ export default async function ShopifyPage() {
               </Card>
             </div>
           </div>
+          )}
 
           <div className="grid gap-4 lg:grid-cols-2">
             {shopifyDataBlocks.map((block) => (
