@@ -33,10 +33,12 @@ const PRODUCT_UPDATE_MUTATION = `
   }
 `
 
-const VARIANT_UPDATE_MUTATION = `
-  mutation productVariantUpdate($input: ProductVariantInput!) {
-    productVariantUpdate(input: $input) {
-      productVariant { id inventoryItem { id } }
+// 2025-10: productVariantUpdate was removed — variants are edited in bulk and SKU
+// now lives on the inventory item.
+const VARIANT_BULK_UPDATE_MUTATION = `
+  mutation productVariantsBulkUpdate($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
+    productVariantsBulkUpdate(productId: $productId, variants: $variants) {
+      productVariants { id inventoryItem { id } }
       userErrors { field message }
     }
   }
@@ -67,27 +69,23 @@ export type SyncProductResult = {
   error?: string
 }
 
+// 2025-10 ProductInput no longer accepts variants inline — only product-level fields.
 function buildProductInput(p: Product): Record<string, unknown> {
   return {
     title: p.name,
     descriptionHtml: p.description ? p.description.replace(/\n/g, "<br>") : undefined,
     productType: p.category || undefined,
     status: p.is_active ? "ACTIVE" : "DRAFT",
-    variants: [
-      {
-        sku: p.sku || undefined,
-        price: String(p.price),
-        barcode: p.barcode || undefined,
-        weight: p.weight ?? undefined,
-        weightUnit: p.weight_unit
-          ? p.weight_unit === "g" ? "GRAMS"
-            : p.weight_unit === "lb" ? "POUNDS"
-            : p.weight_unit === "oz" ? "OUNCES"
-            : "KILOGRAMS"
-          : undefined,
-        inventoryManagement: "SHOPIFY",
-      },
-    ],
+  }
+}
+
+// Build the bulk-variant input (price/barcode on the variant, SKU on the inventory item).
+function buildVariantBulkInput(variantId: string, p: Product): Record<string, unknown> {
+  return {
+    id: variantId,
+    price: String(p.price),
+    barcode: p.barcode || undefined,
+    inventoryItem: { sku: p.sku || undefined, tracked: true },
   }
 }
 
@@ -105,37 +103,22 @@ export async function pushProductToShopify(shop: string, token: string, product:
   let shopifyInventoryItemId = product.shopify_inventory_item_id
 
   if (shopifyProductId) {
-    // UPDATE flow: product update + variant update
-    const updateInput = { id: shopifyProductId, ...baseInput, variants: undefined } as Record<string, unknown>
+    // UPDATE flow: product-level fields
     const updateRes = await adminFetch<{
       productUpdate: { product: CreatedShopifyProduct | null; userErrors: { field: string[]; message: string }[] }
-    }>(shop, token, PRODUCT_UPDATE_MUTATION, { input: updateInput })
+    }>(shop, token, PRODUCT_UPDATE_MUTATION, { input: { id: shopifyProductId, ...baseInput } })
 
     if (!updateRes) return { ok: false, error: "productUpdate request failed" }
     if (updateRes.productUpdate.userErrors.length) {
       return { ok: false, error: updateRes.productUpdate.userErrors.map(e => e.message).join("; ") }
     }
-    if (updateRes.productUpdate.product?.variants.edges[0]?.node) {
-      shopifyVariantId = updateRes.productUpdate.product.variants.edges[0].node.id
-      shopifyInventoryItemId = updateRes.productUpdate.product.variants.edges[0].node.inventoryItem.id
-    }
-
-    // Update variant price/sku/etc separately
-    if (shopifyVariantId) {
-      const variantInput: Record<string, unknown> = {
-        id: shopifyVariantId,
-        price: String(product.price),
-        sku: product.sku || undefined,
-        barcode: product.barcode || undefined,
-        weight: product.weight ?? undefined,
-      }
-      const vRes = await adminFetch<{ productVariantUpdate: { userErrors: { message: string }[] } }>(shop, token, VARIANT_UPDATE_MUTATION, { input: variantInput })
-      if (vRes?.productVariantUpdate.userErrors.length) {
-        return { ok: false, error: vRes.productVariantUpdate.userErrors.map(e => e.message).join("; ") }
-      }
+    const v = updateRes.productUpdate.product?.variants.edges[0]?.node
+    if (v) {
+      shopifyVariantId = v.id
+      shopifyInventoryItemId = v.inventoryItem.id
     }
   } else {
-    // CREATE flow
+    // CREATE flow: product first (a default variant is created automatically)
     const createRes = await adminFetch<{
       productCreate: { product: CreatedShopifyProduct | null; userErrors: { field: string[]; message: string }[] }
     }>(shop, token, PRODUCT_CREATE_MUTATION, { input: baseInput })
@@ -149,6 +132,22 @@ export async function pushProductToShopify(shop: string, token: string, product:
     shopifyProductId = created.id
     shopifyVariantId = created.variants.edges[0]?.node.id
     shopifyInventoryItemId = created.variants.edges[0]?.node.inventoryItem.id
+  }
+
+  // Update the variant (price / barcode / SKU) via the modern bulk mutation.
+  if (shopifyProductId && shopifyVariantId) {
+    const vRes = await adminFetch<{
+      productVariantsBulkUpdate: { productVariants: { id: string; inventoryItem: { id: string } }[] | null; userErrors: { message: string }[] }
+    }>(shop, token, VARIANT_BULK_UPDATE_MUTATION, {
+      productId: shopifyProductId,
+      variants: [buildVariantBulkInput(shopifyVariantId, product)],
+    })
+    if (!vRes) return { ok: false, error: "productVariantsBulkUpdate request failed" }
+    if (vRes.productVariantsBulkUpdate.userErrors.length) {
+      return { ok: false, error: vRes.productVariantsBulkUpdate.userErrors.map(e => e.message).join("; ") }
+    }
+    const iid = vRes.productVariantsBulkUpdate.productVariants?.[0]?.inventoryItem?.id
+    if (iid) shopifyInventoryItemId = iid
   }
 
   // Push stock to primary location
@@ -174,6 +173,31 @@ export async function pushProductToShopify(shop: string, token: string, product:
     shopify_variant_id: shopifyVariantId,
     shopify_inventory_item_id: shopifyInventoryItemId,
   }
+}
+
+// Push a single product's on-hand inventory to Shopify's primary location.
+// Used when stock is adjusted locally and write_inventory scope is granted.
+export async function setShopifyInventory(
+  shop: string,
+  token: string,
+  inventoryItemId: string,
+  quantity: number,
+): Promise<{ ok: boolean; error?: string }> {
+  const locationId = await getPrimaryLocationId(shop, token)
+  if (!locationId) return { ok: false, error: "No se encontró una ubicación activa en Shopify" }
+  const res = await adminFetch<{
+    inventorySetOnHandQuantities: { userErrors: { field: string[]; message: string }[] }
+  }>(shop, token, INVENTORY_SET_MUTATION, {
+    input: {
+      reason: "correction",
+      setQuantities: [{ inventoryItemId, locationId, quantity }],
+    },
+  })
+  if (!res) return { ok: false, error: "inventorySetOnHandQuantities request failed" }
+  if (res.inventorySetOnHandQuantities.userErrors.length) {
+    return { ok: false, error: res.inventorySetOnHandQuantities.userErrors.map(e => e.message).join("; ") }
+  }
+  return { ok: true }
 }
 
 // Pull products + inventory levels from Shopify back into local products.
