@@ -1,5 +1,5 @@
 import { getShopifyShopInfo } from "@/lib/shopify"
-import { getStoreAnalytics } from "@/lib/shopify/analytics"
+import { getStoreAnalytics, getSalesForRange, resolveRange, previousRange, type SalesSummary } from "@/lib/shopify/analytics"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -20,16 +20,28 @@ import {
   CreditCard,
   Boxes,
   TrendingUp,
+  TrendingDown,
+  Minus,
   FlaskConical,
 } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { ShopifyCustomersManager } from "@/components/dashboard/shopify-customers-manager"
+import { AnalyticsRangePicker } from "@/components/dashboard/analytics-range-picker"
 import type { ComponentType } from "react"
 
 export const dynamic = "force-dynamic"
 
-export default async function ShopifyPage() {
-  const [a, shopInfo] = await Promise.all([getStoreAnalytics(), getShopifyShopInfo()])
+export default async function ShopifyPage({ searchParams }: { searchParams: Promise<{ range?: string; compare?: string }> }) {
+  const sp = await searchParams
+  const rangePreset = sp.range || "30d"
+  const compare = sp.compare === "1"
+  const range = resolveRange(rangePreset, new Date())
+
+  const [a, shopInfo, prevSales] = await Promise.all([
+    getStoreAnalytics(range),
+    getShopifyShopInfo(),
+    compare && range ? getSalesForRange(previousRange(range)) : Promise.resolve(null),
+  ])
   const isDemo = !shopInfo?.shop
   const currency = shopInfo?.shop?.currencyCode || a.currency
 
@@ -51,18 +63,27 @@ export default async function ShopifyPage() {
     { title: "Stock Total", value: fmtNum(a.inventory.totalStock), icon: Store },
   ]
 
+  const deltaOf = (cur: number, key: keyof SalesSummary): { pct: number; dir: "up" | "down" | "flat" } | null => {
+    if (!compare || !prevSales) return null
+    const prev = prevSales[key]
+    if (cur === prev) return { pct: 0, dir: "flat" }
+    if (!prev) return { pct: cur > 0 ? 100 : 0, dir: cur > 0 ? "up" : "flat" }
+    const pct = ((cur - prev) / prev) * 100
+    return { pct, dir: pct > 0 ? "up" : "down" }
+  }
+
   const salesKpis = [
-    { title: "Gross Sales", value: fmtMoney(a.sales.grossSales) },
-    { title: "Net Sales", value: fmtMoney(a.sales.netSales) },
-    { title: "Total Sales", value: fmtMoney(a.sales.totalSales) },
-    { title: "Returns", value: fmtMoney(a.sales.returns) },
-    { title: "Discounts", value: fmtMoney(a.sales.discounts) },
-    { title: "Shipping Revenue", value: fmtMoney(a.sales.shipping) },
-    { title: "Taxes", value: fmtMoney(a.sales.taxes) },
-    { title: "AOV", value: fmtMoney(a.sales.aov) },
-    { title: "Orders Count", value: fmtNum(a.sales.ordersCount) },
-    { title: "Items Sold", value: fmtNum(a.sales.itemsSold) },
-    { title: "Revenue / Customer", value: fmtMoney(a.sales.revenuePerCustomer) },
+    { title: "Gross Sales", value: fmtMoney(a.sales.grossSales), delta: deltaOf(a.sales.grossSales, "grossSales") },
+    { title: "Net Sales", value: fmtMoney(a.sales.netSales), delta: deltaOf(a.sales.netSales, "netSales") },
+    { title: "Total Sales", value: fmtMoney(a.sales.totalSales), delta: deltaOf(a.sales.totalSales, "totalSales") },
+    { title: "Returns", value: fmtMoney(a.sales.returns), delta: deltaOf(a.sales.returns, "returns") },
+    { title: "Discounts", value: fmtMoney(a.sales.discounts), delta: deltaOf(a.sales.discounts, "discounts") },
+    { title: "Shipping Revenue", value: fmtMoney(a.sales.shipping), delta: deltaOf(a.sales.shipping, "shipping") },
+    { title: "Taxes", value: fmtMoney(a.sales.taxes), delta: deltaOf(a.sales.taxes, "taxes") },
+    { title: "AOV", value: fmtMoney(a.sales.aov), delta: deltaOf(a.sales.aov, "aov") },
+    { title: "Orders Count", value: fmtNum(a.sales.ordersCount), delta: deltaOf(a.sales.ordersCount, "ordersCount") },
+    { title: "Items Sold", value: fmtNum(a.sales.itemsSold), delta: deltaOf(a.sales.itemsSold, "itemsSold") },
+    { title: "Revenue / Customer", value: fmtMoney(a.sales.revenuePerCustomer), delta: deltaOf(a.sales.revenuePerCustomer, "revenuePerCustomer") },
   ]
 
   const customerKpis = [
@@ -93,6 +114,16 @@ export default async function ShopifyPage() {
           </Badge>
         )}
       </div>
+
+      {!isDemo && (
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <AnalyticsRangePicker range={rangePreset} compare={compare} />
+          <p className="text-xs text-muted-foreground">
+            Ventas y pedidos: <strong>{a.range?.label ?? "Todo"}</strong>
+            {compare && " · comparado con el periodo anterior"}
+          </p>
+        </div>
+      )}
 
       {isDemo && (
         <Alert className="border-amber-500/50 bg-amber-500/10">
@@ -153,8 +184,9 @@ export default async function ShopifyPage() {
                     <CardHeader className="pb-2">
                       <CardTitle className="text-xs font-medium text-muted-foreground">{kpi.title}</CardTitle>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="flex items-end justify-between gap-2">
                       <p className="text-lg font-semibold">{kpi.value}</p>
+                      {kpi.delta && <DeltaBadge dir={kpi.delta.dir} pct={kpi.delta.pct} />}
                     </CardContent>
                   </Card>
                 ))}
@@ -439,6 +471,20 @@ export default async function ShopifyPage() {
         </TabsContent>
       </Tabs>
     </div>
+  )
+}
+
+function DeltaBadge({ dir, pct }: { dir: "up" | "down" | "flat"; pct: number }) {
+  const Icon = dir === "up" ? TrendingUp : dir === "down" ? TrendingDown : Minus
+  const color =
+    dir === "up" ? "text-emerald-600 dark:text-emerald-400"
+      : dir === "down" ? "text-red-600 dark:text-red-400"
+      : "text-muted-foreground"
+  return (
+    <span className={`flex items-center gap-0.5 whitespace-nowrap text-xs font-medium ${color}`} title="vs periodo anterior">
+      <Icon className="h-3 w-3" />
+      {pct === 0 ? "0%" : `${pct > 0 ? "+" : ""}${pct.toFixed(0)}%`}
+    </span>
   )
 }
 

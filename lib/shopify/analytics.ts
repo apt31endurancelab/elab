@@ -71,6 +71,7 @@ export type StoreAnalytics = {
   currency: string
   shopName: string | null
   windowOrders: number
+  range: { label: string } | null
   sales: {
     grossSales: number; netSales: number; totalSales: number; returns: number
     discounts: number; shipping: number; taxes: number; aov: number
@@ -107,8 +108,8 @@ export type StoreAnalytics = {
 }
 
 const ORDERS_QUERY = `
-  query Orders($cursor: String) {
-    orders(first: 100, after: $cursor, sortKey: CREATED_AT, reverse: true) {
+  query Orders($cursor: String, $query: String) {
+    orders(first: 100, after: $cursor, sortKey: CREATED_AT, reverse: true, query: $query) {
       edges { cursor node {
         id name createdAt cancelledAt sourceName tags
         displayFinancialStatus displayFulfillmentStatus
@@ -181,12 +182,13 @@ async function fetchAllPages<T>(
   query: string,
   pick: (data: Record<string, { edges: Array<{ node: T }>; pageInfo: { hasNextPage: boolean; endCursor: string } }>) => { edges: Array<{ node: T }>; pageInfo: { hasNextPage: boolean; endCursor: string } },
   maxPages = 3,
+  baseVars: Record<string, unknown> = {},
 ): Promise<T[]> {
   const out: T[] = []
   let cursor: string | null = null
   for (let i = 0; i < maxPages; i++) {
     const data: Record<string, { edges: Array<{ node: T }>; pageInfo: { hasNextPage: boolean; endCursor: string } }> | null =
-      await shopifyAdminFetch(query, { cursor }, { noStore: true })
+      await shopifyAdminFetch(query, { cursor, ...baseVars }, { noStore: true })
     if (!data) break
     const conn = pick(data)
     out.push(...conn.edges.map((e) => e.node))
@@ -206,9 +208,91 @@ function monthLabel(key: string): string {
   return MONTHS_ES[m - 1] ?? key
 }
 
-export async function getStoreAnalytics(): Promise<StoreAnalytics> {
+// ---- Date ranges --------------------------------------------------------------
+export type ResolvedRange = { from: Date; to: Date; label: string }
+
+const DAY = 86400_000
+export const RANGE_PRESETS: { value: string; label: string }[] = [
+  { value: "24h", label: "Últimas 24 horas" },
+  { value: "7d", label: "Últimos 7 días" },
+  { value: "30d", label: "Últimos 30 días" },
+  { value: "month", label: "Este mes" },
+  { value: "prev_month", label: "Mes anterior" },
+  { value: "all", label: "Todo" },
+]
+
+// `now` is passed in by the caller (server page) so this module never reads the clock itself.
+export function resolveRange(preset: string, now: Date): ResolvedRange | null {
+  const to = new Date(now)
+  const y = now.getUTCFullYear()
+  const m = now.getUTCMonth()
+  switch (preset) {
+    case "24h": return { from: new Date(now.getTime() - DAY), to, label: "Últimas 24 horas" }
+    case "7d": return { from: new Date(now.getTime() - 7 * DAY), to, label: "Últimos 7 días" }
+    case "30d": return { from: new Date(now.getTime() - 30 * DAY), to, label: "Últimos 30 días" }
+    case "month": return { from: new Date(Date.UTC(y, m, 1)), to, label: "Este mes" }
+    case "prev_month": return {
+      from: new Date(Date.UTC(y, m - 1, 1)),
+      to: new Date(Date.UTC(y, m, 1) - 1),
+      label: "Mes anterior",
+    }
+    default: return null // "all"
+  }
+}
+
+// Equal-length period immediately before the given range (for comparisons).
+export function previousRange(r: ResolvedRange): ResolvedRange {
+  const span = r.to.getTime() - r.from.getTime()
+  return {
+    from: new Date(r.from.getTime() - span - 1),
+    to: new Date(r.from.getTime() - 1),
+    label: "Periodo anterior",
+  }
+}
+
+function orderDateQuery(r: ResolvedRange | null): string | null {
+  if (!r) return null
+  return `created_at:>='${r.from.toISOString()}' created_at:<='${r.to.toISOString()}'`
+}
+
+export type SalesSummary = StoreAnalytics["sales"]
+
+function computeSales(liveOrders: OrderNode[], customerCount: number): SalesSummary {
+  let grossSales = 0, discounts = 0, shipping = 0, taxes = 0, returns = 0, totalSales = 0, itemsSold = 0
+  for (const o of liveOrders) {
+    grossSales += money(o.currentSubtotalPriceSet) + money(o.currentTotalDiscountsSet)
+    discounts += money(o.currentTotalDiscountsSet)
+    shipping += money(o.totalShippingPriceSet)
+    taxes += money(o.currentTotalTaxSet)
+    returns += money(o.totalRefundedSet)
+    totalSales += money(o.currentTotalPriceSet)
+    for (const li of o.lineItems.edges) itemsSold += li.node.quantity || 0
+  }
+  const ordersCount = liveOrders.length
+  return {
+    grossSales: Math.round(grossSales),
+    netSales: Math.round(grossSales - discounts - returns),
+    totalSales: Math.round(totalSales),
+    returns: Math.round(returns),
+    discounts: Math.round(discounts),
+    shipping: Math.round(shipping),
+    taxes: Math.round(taxes),
+    aov: ordersCount > 0 ? totalSales / ordersCount : 0,
+    ordersCount,
+    itemsSold,
+    revenuePerCustomer: customerCount > 0 ? totalSales / customerCount : 0,
+  }
+}
+
+// Lightweight sales-only summary for a range — used for period-over-period comparison.
+export async function getSalesForRange(range: ResolvedRange | null): Promise<SalesSummary> {
+  const orderNodes = await fetchAllPages<OrderNode>(ORDERS_QUERY, (d) => d.orders, 3, { query: orderDateQuery(range) })
+  return computeSales(orderNodes.filter((o) => !o.cancelledAt), 0)
+}
+
+export async function getStoreAnalytics(range: ResolvedRange | null = null): Promise<StoreAnalytics> {
   const [orderNodes, customerNodes, productNodes, invData] = await Promise.all([
-    fetchAllPages<OrderNode>(ORDERS_QUERY, (d) => d.orders),
+    fetchAllPages<OrderNode>(ORDERS_QUERY, (d) => d.orders, 3, { query: orderDateQuery(range) }),
     fetchAllPages<CustomerNode>(CUSTOMERS_QUERY, (d) => d.customers),
     fetchAllPages<ProductNode>(PRODUCTS_QUERY, (d) => d.products),
     shopifyAdminFetch<{ productVariants: { edges: Array<{ node: {
@@ -226,20 +310,7 @@ export async function getStoreAnalytics(): Promise<StoreAnalytics> {
     || "CLP"
 
   // ---- Sales ----
-  let grossSales = 0, discounts = 0, shipping = 0, taxes = 0, returns = 0, totalSales = 0, itemsSold = 0
-  for (const o of liveOrders) {
-    grossSales += money(o.currentSubtotalPriceSet) + money(o.currentTotalDiscountsSet) // pre-discount subtotal
-    discounts += money(o.currentTotalDiscountsSet)
-    shipping += money(o.totalShippingPriceSet)
-    taxes += money(o.currentTotalTaxSet)
-    returns += money(o.totalRefundedSet)
-    totalSales += money(o.currentTotalPriceSet)
-    for (const li of o.lineItems.edges) itemsSold += li.node.quantity || 0
-  }
-  const netSales = grossSales - discounts - returns
-  const ordersCount = liveOrders.length
-  const aov = ordersCount > 0 ? totalSales / ordersCount : 0
-  const revenuePerCustomer = customerNodes.length > 0 ? totalSales / customerNodes.length : 0
+  const sales = computeSales(liveOrders, customerNodes.length)
 
   // ---- Sales trend (last 6 months present in the window) ----
   const trendMap = new Map<string, { gross: number; net: number }>()
@@ -363,11 +434,8 @@ export async function getStoreAnalytics(): Promise<StoreAnalytics> {
     currency,
     shopName: null,
     windowOrders: liveOrders.length,
-    sales: {
-      grossSales: Math.round(grossSales), netSales: Math.round(netSales), totalSales: Math.round(totalSales),
-      returns: Math.round(returns), discounts: Math.round(discounts), shipping: Math.round(shipping),
-      taxes: Math.round(taxes), aov, ordersCount, itemsSold, revenuePerCustomer,
-    },
+    range: range ? { label: range.label } : null,
+    sales,
     salesTrend,
     orders,
     customers: {
