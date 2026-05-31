@@ -44,6 +44,8 @@ type CustomerNode = {
   email: string | null
   firstName: string | null
   lastName: string | null
+  phone: string | null
+  note: string | null
   tags: string[]
   numberOfOrders: string
   createdAt: string
@@ -83,7 +85,8 @@ export type StoreAnalytics = {
     total: number; newCount: number; returningCount: number; repeatPurchaseRate: number
     avgClv: number; subscribedRate: number
     list: Array<{
-      id: string; name: string; email: string; ordersCount: number; totalSpent: number
+      id: string; name: string; firstName: string; lastName: string; email: string; phone: string
+      note: string; ordersCount: number; totalSpent: number
       aov: number; location: string; marketing: boolean; lastOrderAt: string | null; tags: string[]
     }>
   }
@@ -133,7 +136,7 @@ const CUSTOMERS_QUERY = `
   query Customers($cursor: String) {
     customers(first: 100, after: $cursor, sortKey: CREATED_AT, reverse: true) {
       edges { node {
-        id email firstName lastName tags numberOfOrders createdAt
+        id email firstName lastName phone note tags numberOfOrders createdAt
         amountSpent { amount currencyCode }
         defaultAddress { city country }
         emailMarketingConsent { marketingState }
@@ -301,7 +304,11 @@ export async function getStoreAnalytics(): Promise<StoreAnalytics> {
     return {
       id: c.id,
       name: `${c.firstName || ""} ${c.lastName || ""}`.trim() || c.email || "Cliente",
+      firstName: c.firstName || "",
+      lastName: c.lastName || "",
       email: c.email || "—",
+      phone: c.phone || "",
+      note: c.note || "",
       ordersCount: orders,
       totalSpent: spent,
       aov: orders > 0 ? spent / orders : 0,

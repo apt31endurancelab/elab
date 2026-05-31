@@ -23,6 +23,7 @@ import {
   FlaskConical,
 } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { ShopifyCustomersManager } from "@/components/dashboard/shopify-customers-manager"
 import type { ComponentType } from "react"
 
 export const dynamic = "force-dynamic"
@@ -257,47 +258,8 @@ export default async function ShopifyPage() {
             ))}
           </div>
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base font-medium">
-                <Users className="h-4 w-4" /> Clientes
-              </CardTitle>
-              <CardDescription>Segmentación, gasto y ubicación</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {a.customers.list.length > 0 ? (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Cliente</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Ubicación</TableHead>
-                      <TableHead className="text-right">Pedidos</TableHead>
-                      <TableHead className="text-right">Total gastado</TableHead>
-                      <TableHead className="text-right">AOV</TableHead>
-                      <TableHead>Marketing</TableHead>
-                      <TableHead>Último pedido</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {a.customers.list.map((c) => (
-                      <TableRow key={c.id}>
-                        <TableCell className="font-medium">{c.name}</TableCell>
-                        <TableCell className="text-muted-foreground">{c.email}</TableCell>
-                        <TableCell>{c.location}</TableCell>
-                        <TableCell className="text-right">{fmtNum(c.ordersCount)}</TableCell>
-                        <TableCell className="text-right">{fmtMoney(c.totalSpent)}</TableCell>
-                        <TableCell className="text-right">{fmtMoney(c.aov)}</TableCell>
-                        <TableCell>
-                          <Badge variant={c.marketing ? "default" : "outline"}>{c.marketing ? "Suscrito" : "No"}</Badge>
-                        </TableCell>
-                        <TableCell>{fmtDate(c.lastOrderAt)}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              ) : (
-                <EmptyState icon={Users} text="No hay clientes todavía" />
-              )}
+            <CardContent className="pt-6">
+              <ShopifyCustomersManager customers={a.customers.list} currency={currency} />
             </CardContent>
           </Card>
         </TabsContent>
