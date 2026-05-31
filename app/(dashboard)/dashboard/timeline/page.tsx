@@ -1,4 +1,6 @@
 import { createClient } from "@/lib/supabase/server"
+import { getGlobalRange } from "@/lib/date-range"
+import type { ResolvedRange } from "@/lib/shopify/analytics"
 import { ActivityTimeline } from "@/components/dashboard/activity-timeline"
 import { demoActivityLog, demoInvoices, demoTasks } from "@/lib/demo-data"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -66,7 +68,7 @@ async function getAgendaData(): Promise<{ invoices: AgendaInvoice[]; tasks: Agen
   }
 }
 
-async function getActivityData() {
+async function getActivityData(range: ResolvedRange | null) {
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -84,11 +86,15 @@ async function getActivityData() {
     const isSuperadmin = profile?.role === "superadmin"
 
     // RLS handles filtering: superadmin sees all, others see own
-    const { data: logs } = await supabase
+    let logsQuery = supabase
       .from("activity_log")
       .select("*")
       .order("created_at", { ascending: false })
       .limit(500)
+    if (range) {
+      logsQuery = logsQuery.gte("created_at", range.from.toISOString()).lte("created_at", range.to.toISOString())
+    }
+    const { data: logs } = await logsQuery
 
     // If superadmin, fetch all user profiles for display
     let users: Record<string, { email: string; full_name: string | null }> = {}
@@ -112,8 +118,9 @@ async function getActivityData() {
 }
 
 export default async function TimelinePage() {
+  const { range } = await getGlobalRange()
   const [{ logs, isDemo, isSuperadmin, users }, agenda] = await Promise.all([
-    getActivityData(),
+    getActivityData(range),
     getAgendaData(),
   ])
 

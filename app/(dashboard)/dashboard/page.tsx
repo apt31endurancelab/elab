@@ -4,14 +4,15 @@ import { CustomizableDashboard } from "@/components/dashboard/customizable-dashb
 import { demoStats, demoAffiliates, demoTasks, demoInvoices } from "@/lib/demo-data"
 import type { AgendaInvoice, AgendaTask } from "@/components/dashboard/upcoming-agenda"
 import type { RawSale } from "@/components/dashboard/charts"
-import { getStoreAnalytics } from "@/lib/shopify/analytics"
+import { getStoreAnalytics, type ResolvedRange } from "@/lib/shopify/analytics"
 import { getShopifyShopInfo } from "@/lib/shopify"
+import { getGlobalRange } from "@/lib/date-range"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { DollarSign, ShoppingBag, Users, Boxes, ArrowRight } from "lucide-react"
 
-async function getShopifyKpis() {
+async function getShopifyKpis(range: ResolvedRange | null) {
   try {
-    const [a, shopInfo] = await Promise.all([getStoreAnalytics(), getShopifyShopInfo()])
+    const [a, shopInfo] = await Promise.all([getStoreAnalytics(range), getShopifyShopInfo()])
     if (!shopInfo?.shop) return null
     const currency = shopInfo.shop.currencyCode || a.currency
     const money = (n: number) => {
@@ -32,9 +33,11 @@ async function getShopifyKpis() {
 type RecentTask = { id: string; title: string; status: string; due_date: string | null; assigned_to: string | null }
 type RecentInvoice = { id: string; invoice_number: string; client_name: string; total: number; status: string; issue_date: string }
 
-async function getDashboardData() {
+async function getDashboardData(range: ResolvedRange | null) {
   try {
     const supabase = await createClient()
+    const fromIso = range?.from.toISOString()
+    const toIso = range?.to.toISOString()
 
     const [
       { count: affiliatesCount },
@@ -48,7 +51,7 @@ async function getDashboardData() {
     ] = await Promise.all([
       supabase.from("affiliates").select("*", { count: "exact", head: true }).eq("status", "active"),
       supabase.from("tasks").select("*", { count: "exact", head: true }).eq("status", "pending"),
-      supabase.from("affiliate_sales").select("created_at, order_total, commission_amount").order("created_at", { ascending: true }),
+      (() => { let q = supabase.from("affiliate_sales").select("created_at, order_total, commission_amount").order("created_at", { ascending: true }); if (fromIso && toIso) q = q.gte("created_at", fromIso).lte("created_at", toIso); return q })(),
       supabase.from("affiliates").select("name, total_sales:order_total").limit(10),
       supabase.from("invoices").select("id, client_id, invoice_number, type, status, issue_date, validity_days, total, is_recurring, recurring_frequency, clients(name)"),
       supabase.from("tasks").select("id, title, description, status, priority, due_date, assigned_to").not("due_date", "is", null),
@@ -140,7 +143,8 @@ async function getDashboardData() {
 }
 
 export default async function DashboardPage() {
-  const [data, shopifyKpis] = await Promise.all([getDashboardData(), getShopifyKpis()])
+  const { range } = await getGlobalRange()
+  const [data, shopifyKpis] = await Promise.all([getDashboardData(range), getShopifyKpis(range)])
 
   return (
     <div className="space-y-6">

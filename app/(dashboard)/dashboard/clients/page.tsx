@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Building2, Users, Mail, AlertTriangle } from "lucide-react"
 import { CreateClientDialog, type Client } from "@/components/dashboard/create-client-dialog"
+import { ImportShopifyClientsButton } from "@/components/dashboard/import-shopify-clients-button"
 import { ClientListTable } from "@/components/dashboard/client-list-table"
 import { ClientRevival, type RevivalClient } from "@/components/dashboard/client-revival"
 import { demoClients, demoInvoices, demoClientActivities } from "@/lib/demo-data"
@@ -158,7 +159,10 @@ export default async function ClientsPage() {
             Gestiona tus clientes para facturación
           </p>
         </div>
-        <CreateClientDialog isDemo={isDemo} />
+        <div className="flex items-center gap-2">
+          {!isDemo && <ImportShopifyClientsButton />}
+          <CreateClientDialog isDemo={isDemo} />
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

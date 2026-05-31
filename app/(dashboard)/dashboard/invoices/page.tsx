@@ -1,4 +1,6 @@
 import { createClient } from "@/lib/supabase/server"
+import { getGlobalRange } from "@/lib/date-range"
+import type { ResolvedRange } from "@/lib/shopify/analytics"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -39,14 +41,20 @@ export type InvoiceRow = {
   items: { description: string; quantity: number; unit_price: number; amount: number }[]
 }
 
-async function getInvoices(): Promise<{ invoices: InvoiceRow[]; isDemo: boolean }> {
+async function getInvoices(range: ResolvedRange | null): Promise<{ invoices: InvoiceRow[]; isDemo: boolean }> {
   try {
     const supabase = await createClient()
 
-    const { data: invoices } = await supabase
+    let invoicesQuery = supabase
       .from("invoices")
       .select("*, clients(name, rut, tax_id, tax_id_type, address, phone, contact_person, email)")
       .order("created_at", { ascending: false })
+    if (range) {
+      invoicesQuery = invoicesQuery
+        .gte("issue_date", range.from.toISOString().slice(0, 10))
+        .lte("issue_date", range.to.toISOString().slice(0, 10))
+    }
+    const { data: invoices } = await invoicesQuery
 
     if (!invoices) return { invoices: demoInvoices as InvoiceRow[], isDemo: true }
 
@@ -87,7 +95,8 @@ async function getInvoices(): Promise<{ invoices: InvoiceRow[]; isDemo: boolean 
 }
 
 export default async function InvoicesPage() {
-  const { invoices, isDemo } = await getInvoices()
+  const { range } = await getGlobalRange()
+  const { invoices, isDemo } = await getInvoices(range)
 
   const totalInvoiced = invoices.reduce((sum, inv) => sum + Number(inv.total), 0)
   const paidTotal = invoices.filter(i => i.status === "paid").reduce((sum, inv) => sum + Number(inv.total), 0)
