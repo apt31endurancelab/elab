@@ -6,7 +6,7 @@ application_url = "http://localhost:3001"
 embedded = false
 
 [access_scopes]
-scopes = "read_orders,read_products,read_customers,write_products,write_discounts"
+scopes = "read_orders,read_products,read_customers,read_inventory,read_locations,write_products,write_discounts"
 use_legacy_install_flow = true
 
 [auth]

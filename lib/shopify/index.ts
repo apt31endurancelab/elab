@@ -42,7 +42,11 @@ async function resolveCredentials(): Promise<Credentials | null> {
   return creds
 }
 
-async function shopifyAdminFetch<T>(query: string, variables?: Record<string, unknown>): Promise<T | null> {
+export async function shopifyAdminFetch<T>(
+  query: string,
+  variables?: Record<string, unknown>,
+  opts?: { noStore?: boolean },
+): Promise<T | null> {
   const creds = await resolveCredentials()
   if (!creds) {
     console.warn("Shopify not configured (no DB connection and no env token)")
@@ -57,7 +61,7 @@ async function shopifyAdminFetch<T>(query: string, variables?: Record<string, un
         "X-Shopify-Access-Token": creds.token,
       },
       body: JSON.stringify({ query, variables }),
-      next: { revalidate: 300 },
+      ...(opts?.noStore ? { cache: "no-store" as const } : { next: { revalidate: 300 } }),
     })
 
     const json: ShopifyResponse<T> = await response.json()
