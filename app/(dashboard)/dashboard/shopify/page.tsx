@@ -158,7 +158,6 @@ export default async function ShopifyPage({ searchParams }: { searchParams: Prom
           <TabsTrigger value="products" className="flex-none">Productos</TabsTrigger>
           <TabsTrigger value="inventory" className="flex-none">Inventario</TabsTrigger>
           <TabsTrigger value="payments" className="flex-none">Pagos</TabsTrigger>
-          <TabsTrigger value="traffic" className="flex-none">Tráfico</TabsTrigger>
         </TabsList>
 
         {/* 1. SALES */}
@@ -216,9 +215,6 @@ export default async function ShopifyPage({ searchParams }: { searchParams: Prom
                 </CardContent>
               </Card>
 
-              <p className="text-xs text-muted-foreground">
-                Nota: <strong>Revenue per visitor</strong> requiere datos de sesiones (Google Analytics 4); no lo expone la Admin API de Shopify.
-              </p>
             </CardContent>
           </Card>
         </TabsContent>
@@ -439,35 +435,6 @@ export default async function ShopifyPage({ searchParams }: { searchParams: Prom
               )}
             </CardContent>
           </Card>
-        </TabsContent>
-
-        {/* 4 + 5. TRAFFIC / FUNNEL (GA4) */}
-        <TabsContent value="traffic" className="space-y-4">
-          <Alert className="border-blue-500/40 bg-blue-500/10">
-            <FlaskConical className="h-4 w-4 text-blue-500" />
-            <AlertTitle className="text-blue-600 dark:text-blue-400">Requiere Google Analytics 4</AlertTitle>
-            <AlertDescription className="text-blue-600/80 dark:text-blue-400/80">
-              El <strong>Conversion Funnel</strong> (sesiones, add-to-cart, checkout) y las <strong>fuentes de tráfico</strong>
-              (Direct, Search, Social, Email, Referral) no los expone la Admin API de Shopify. Para datos reales aquí hay
-              que conectar Google Analytics 4 o usar ShopifyQL. Lo dejamos preparado como siguiente integración.
-            </AlertDescription>
-          </Alert>
-          <div className="grid gap-4 lg:grid-cols-2">
-            <Card className="border-dashed">
-              <CardHeader>
-                <CardTitle className="text-sm">Conversion Funnel</CardTitle>
-                <CardDescription>Sessions → Product views → Add to cart → Checkout → Purchase</CardDescription>
-              </CardHeader>
-              <CardContent className="text-sm text-muted-foreground">Pendiente de conectar GA4.</CardContent>
-            </Card>
-            <Card className="border-dashed">
-              <CardHeader>
-                <CardTitle className="text-sm">Fuentes de Tráfico</CardTitle>
-                <CardDescription>Atribución por canal de adquisición</CardDescription>
-              </CardHeader>
-              <CardContent className="text-sm text-muted-foreground">Pendiente de conectar GA4.</CardContent>
-            </Card>
-          </div>
         </TabsContent>
       </Tabs>
     </div>
